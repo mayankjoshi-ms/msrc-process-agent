@@ -702,3 +702,27 @@ Blocked:
 Next action:
   - <what needs to happen next>
 ```
+
+---
+
+## 18. Skill Self-Update Protocol
+
+This skill is maintained at 4 synchronized locations. **Every update** to this skill must sync all 4:
+
+| # | Role | Location | Sync Method |
+|---|---|---|---|
+| 1 | **Primary** | `D:\skill\SKILL.md` | Edit here first |
+| 2 | **GitHub** | `github.com/mayankjoshi-ms/msrc-process-agent` | `git add . && git commit -m "<change summary>" && git push` from `D:\skill` |
+| 3 | **Copilot runtime** | `C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md` | File copy from primary |
+| 4 | **OneDrive backup** | `C:\Users\mayajoshi\OneDrive - Microsoft\Desktop\Skills\MSRC-Process\SKILL.md` | File copy from primary |
+
+### Update Sequence (mandatory)
+```
+1. Edit D:\skill\SKILL.md
+2. cd D:\skill && git add . && git commit -m "<summary>" && git push
+3. Copy-Item "D:\skill\SKILL.md" "C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md" -Force
+4. Copy-Item "D:\skill\SKILL.md" "C:\Users\mayajoshi\OneDrive - Microsoft\Desktop\Skills\MSRC-Process\SKILL.md" -Force
+5. Verify all 4 hashes match
+```
+
+**Never** update only one location. If any sync step fails, flag it to the user immediately.
