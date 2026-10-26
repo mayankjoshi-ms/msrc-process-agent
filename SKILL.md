@@ -176,7 +176,7 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
     <branchToken>feature/.*</branchToken>
     <branchToken>pull/.*</branchToken>
   </enabledByDefaultBranchTokens>
-  <email>wdsupoifix@microsoft.com</email>
+  <email>mayajoshi@microsoft.com</email>
   <changeTime>YYYY-MM-DDTHH:MM:SS.0000000-XX:XX</changeTime>
 </feature>
 ```
@@ -190,7 +190,7 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
   <description>MSRC XXXXXX fix</description>
   <stage>EnabledByDefault</stage>
   <!-- NO enabledByDefaultBranchTokens for downlevel -->
-  <email>wdsupoifix@microsoft.com</email>
+  <email>mayajoshi@microsoft.com</email>
   <changeTime>YYYY-MM-DDTHH:MM:SS.0000000-XX:XX</changeTime>
 </feature>
 ```
@@ -208,7 +208,7 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 
 ```json
 {
-  "owner": "wdsupoifix@microsoft.com",
+  "owner": "mayajoshi@microsoft.com",
   "team": "USO-Update Session Orchestrator",
   "MSRCCaseId": "XXXXXX",
   "className": "Feature_MSRCXXXXXX",
