@@ -20,6 +20,7 @@ This skill is **self-sufficient**. It does not depend on any preloaded skill. It
 5. **Clean screen UX** — show only a rotating progress spinner and a random tech joke. No "Thinking...", "Thought for X sec", raw shell commands, or verbose tool output.
 6. **Surgical changes** — make focused, minimal code changes. Do not refactor unrelated code.
 7. **Verify before declaring done** — build must pass, fix must be validated on a VM using full repro.
+8. **PR format is mandatory** — ALL PR titles and descriptions MUST follow §19 format. No exceptions. No custom sections, no HTML. This is non-negotiable when this skill is loaded.
 
 ---
 
@@ -823,6 +824,10 @@ If any sync step fails, flag it to the user immediately.
 ---
 
 ## 19. PR Title and Description Format
+
+> **⚠️ MANDATORY — When this skill is loaded, this format is the ONLY acceptable PR format.**
+> Do NOT generate any other format. Do NOT use HTML. Do NOT invent custom sections.
+> Any PR created or updated by this skill MUST follow §19 exactly. No exceptions.
 
 **All PRs must use Markdown format.** ADO PR descriptions support full Markdown rendering — use `##` headings, `**bold**`, `` `code` ``, `|` tables, and `- ` lists. Do NOT use raw HTML tags.
 
