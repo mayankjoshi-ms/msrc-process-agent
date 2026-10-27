@@ -678,8 +678,10 @@ For each supported platform that needs a fix:
 4. Never force-push without explicit permission
 
 ### Phase 7: PR Creation
-1. Create PR with appropriate reviewers (§6)
-2. Link PR to platform bug
+1. Create PR with title following **§19 title format**
+2. Create PR description following **§19 description format (Markdown)**
+3. Add appropriate reviewers (§6)
+4. Link PR to platform bug
 3. Add PR description following the **standard 3-section format** (see §19)
 4. Set auto-complete if requested
 
@@ -820,11 +822,30 @@ If any sync step fails, flag it to the user immediately.
 
 ---
 
-## 19. PR Description Format
+## 19. PR Title and Description Format
 
-**Every PR must use this exact 3-section structure.** Do NOT invent custom sections like "Attack Scenario", "Fix Description", "Variant Analysis", etc.
+**All PRs must use Markdown format.** ADO PR descriptions support full Markdown rendering — use `##` headings, `**bold**`, `` `code` ``, `|` tables, and `- ` lists. Do NOT use raw HTML tags.
 
-### Template
+### PR Title Format
+
+```
+[<branch>] <short fix description> (MSRC <ID>)
+```
+
+| Platform | Example Title |
+|---|---|
+| Main | `[main] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
+| GE | `[GE] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
+| GE-LT | `[GE-LT] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
+| NI | `[NI] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
+
+Rules:
+- Branch name in `[]` brackets at the start — use the short platform name (main, GE, GE-LT, NI, BR, FE, VB)
+- Fix description should be concise (one line)
+- MSRC ID(s) in parentheses at the end
+- For non-MSRC PRs, use `(Bug <ID>)` instead of `(MSRC <ID>)`
+
+### PR Description Template
 
 ```markdown
 ## Why is this change being made?
@@ -864,9 +885,10 @@ If any sync step fails, flag it to the user immediately.
 <Mention unit tests, regression analysis, VM validation, etc.>
 ```
 
-### Rules
-- Use **Markdown**, not raw HTML (no `<h2>`, `<table>`, `<ul>` tags).
+### Description Rules
+- **Markdown only** — no raw HTML (`<h2>`, `<table>`, `<ul>`, `<b>`, etc.). ADO renders Markdown natively.
 - Section headings must be exactly: `## Why is this change being made?`, `## What is being changed?`, `## How was the change tested?`
+- Do NOT invent custom sections like "Attack Scenario", "Fix Description", "Variant Analysis", "References", etc.
 - Before/after tables are required when repro was performed.
 - Files changed list is required in the "What" section.
 - Containment feature key and state must be mentioned if applicable.
