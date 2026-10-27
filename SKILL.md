@@ -21,6 +21,13 @@ This skill is **self-sufficient**. It does not depend on any preloaded skill. It
 6. **Surgical changes** — make focused, minimal code changes. Do not refactor unrelated code.
 7. **Verify before declaring done** — build must pass, fix must be validated on a VM using full repro.
 8. **PR format is mandatory** — ALL PR titles and descriptions MUST follow §19 format. No exceptions. No custom sections, no HTML. This is non-negotiable when this skill is loaded.
+9. **PRs must be complete on creation** — A PR is NEVER created without ALL of the following, even if it's a draft:
+   - ✅ Title in `[<branch>] <description> (MSRC <ID>)` format
+   - ✅ Full Markdown description with all 3 sections (Why/What/How)
+   - ✅ IcM link in the description (`https://portal.microsofticm.com/imp/v5/incidents/details/<ID>/summary`)
+   - ✅ Platform bug linked to the PR (`az repos pr work-item add`)
+   - ✅ Reviewers assigned
+   If ANY of these cannot be completed, do NOT create the PR — flag the blocker to the user instead.
 
 ---
 
@@ -678,21 +685,46 @@ For each supported platform that needs a fix:
 3. Push only when user approves
 4. Never force-push without explicit permission
 
-### Phase 7: PR Creation
-1. Create PR with title following **§19 title format**
-2. Set PR description following **§19 description format (Markdown)**
-3. Add appropriate reviewers (§6)
-4. Link PR to platform bug
-5. Set auto-complete if requested
+### Phase 7: PR Creation (ATOMIC — all steps mandatory, even for drafts)
 
-> **⚠️ Do NOT use `az repos pr update --description` for multi-line descriptions — it truncates content.**
-> Use the ADO REST API instead:
-> ```powershell
-> $token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv
-> $body = @{ description = $description } | ConvertTo-Json -Depth 5 -Compress
-> Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/git/repositories/<repo>/pullrequests/<id>?api-version=7.1" -Method Patch -Body $body -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
-> ```
+> **⚠️ A PR is NEVER "half created". All steps below execute as one unit. If any step fails, roll back and flag the blocker.**
 
+**Before creating the PR, prepare ALL of the following:**
+
+1. **Title** — `[<branch>] <short fix description> (MSRC <ID>)` (§19)
+2. **Description** — Full Markdown with all 3 sections (§19):
+   - `## Why is this change being made?` — must include IcM link and MSRC ID
+   - `## What is being changed?` — must list files changed
+   - `## How was the change tested?` — must include before/after tables if repro was done
+3. **Bug ID** — the correct platform bug to link
+4. **Reviewers** — from §6 reviewer mapping
+5. **IcM ID** — for the IcM link in the description
+
+**Execution sequence:**
+
+```powershell
+# Step 1: Create PR with title (az CLI sets title correctly)
+az repos pr create --repository <repo> --source-branch <branch> --target-branch <target> --title "<title>" --org "https://dev.azure.com/microsoft" --project "OS" --draft
+
+# Step 2: Set full description via REST API (az CLI truncates multi-line descriptions)
+$token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv
+$body = @{ description = $description } | ConvertTo-Json -Depth 5 -Compress
+Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/git/repositories/<repo>/pullrequests/<id>?api-version=7.1" -Method Patch -Body $body -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+
+# Step 3: Link platform bug
+az repos pr work-item add --id <PR_ID> --work-items <BUG_ID> --org "https://dev.azure.com/microsoft"
+
+# Step 4: Add reviewers
+az repos pr reviewer add --id <PR_ID> --reviewers <alias1> <alias2> --org "https://dev.azure.com/microsoft"
+```
+
+**Post-creation verification (mandatory):**
+- Confirm title matches §19 format
+- Confirm description has all 3 sections and IcM link
+- Confirm bug is linked (`az repos pr work-item list --id <PR_ID>`)
+- Confirm reviewers are assigned
+
+If any verification fails, fix it immediately before reporting PR as created.
 ### Phase 8: Bug Updates (only when asked)
 1. Set triage to "Consider by Triad Shiproom" (if asked, with approval)
 2. After shiproom + PR merge → resolve as Fixed (if asked, with approval)
@@ -866,7 +898,7 @@ Rules:
 - <MSRC ID(s) and vulnerability class (EoP, RCE, Info Disclosure, Tampering, etc.)>
 - <Root cause: what the attacker can do and why>
 - <Which entry points / code paths are affected>
-- <Reference to IcM if applicable>
+- **IcM link (REQUIRED):** `[<IcM ID>](https://portal.microsofticm.com/imp/v5/incidents/details/<IcM ID>/summary)` | MSRC Case: <ID> | Bug: <Bug ID>
 
 ## What is being changed?
 
