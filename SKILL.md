@@ -404,6 +404,63 @@ When the user provides or the IcM specifies a target release (e.g., "targeting 1
 2. Show the user: "Target: **10B** (October) → Code must be checked in by **9B** (September) timeline."
 3. If the current date is past the checkin deadline, flag a warning that the deadline may have passed.
 
+### Coldpatch vs Hotpatch Months
+
+**Coldpatch months: 1B, 4B, 7B, 10B** (January, April, July, October).
+
+In coldpatch months, hotpatch updates are NOT shipped. Therefore:
+- **Hotpatch bugs (GE Hotpatch, GE-LT Hotpatch, Server 2022 Hotpatch) can be closed** when the target release is a coldpatch month.
+- Close reason: **Won't Fix** — "Not applicable: {XB} is a coldpatch month; hotpatch not shipped."
+
+All other months (2B, 3B, 5B, 6B, 8B, 9B, 11B, 12B) are **hotpatch months** — hotpatch bugs remain applicable and must be fixed (if the platform is supported).
+
+### Bug Disposition Decision Tree
+
+Given a target release (e.g., 10B), determine each bug's action:
+
+```
+For each bug in the task group:
+  1. Is the platform supported? (see §4)
+     NO  → Close as Won't Fix ("Not supported for USO")
+     YES → continue
+
+  2. Is it a hotpatch bug AND target is a coldpatch month (1B/4B/7B/10B)?
+     YES → Close as Won't Fix ("Coldpatch month — hotpatch not shipped")
+     NO  → continue
+
+  3. Is the platform status ❓ Unknown? (GE Hotpatch, GE-LT Hotpatch, Server 2022 Hotpatch)
+     YES → Ask user before proceeding
+     NO  → Fix required
+```
+
+**Example: MSRC targeting 10B (coldpatch month)**
+
+| Bug Type | Platform | Action | Reason |
+|---|---|---|---|
+| Main OS | Main | ✅ Fix | Supported |
+| Main OS | GE | ✅ Fix | Supported |
+| Main OS | GE-LT | ✅ Fix | Supported |
+| Main OS | NI | ✅ Fix | Supported |
+| Main OS | BR | ✅ Fix | Supported |
+| Main OS | FE | ✅ Fix | Supported (docked) |
+| Main OS | VB | ✅ Fix | Supported (docked, last) |
+| Main OS | Win 10 1809 | ❌ Close | Not supported |
+| Main OS | Win 10 1607 | ❌ Close | Not supported |
+| Main OS | Win 8.1 | ❌ Close | Not supported |
+| Main OS | Server 2012 | ❌ Close | Not supported |
+| SafeOS DU | GE | ✅ Fix | Supported |
+| SafeOS DU | GE-LT | ✅ Fix | Supported |
+| SafeOS DU | NI | ✅ Fix | Supported |
+| SafeOS DU | BR | ✅ Fix | Supported |
+| SafeOS DU | FE | ✅ Fix | Supported (docked) |
+| SafeOS DU | VB | ✅ Fix | Supported (docked) |
+| SafeOS DU | Unsupported | ❌ Close | Not supported |
+| Hotpatch | GE | ❌ Close | **10B = coldpatch month** |
+| Hotpatch | GE-LT | ❌ Close | **10B = coldpatch month** |
+| Hotpatch | Server 2022 | ❌ Close | **10B = coldpatch month** |
+
+**Summary for 10B:** Fix 13 bugs (7 Main OS + 6 SafeOS DU), Close all hotpatch + unsupported.
+
 ### Release Rules
 
 | Assessment Result | Required Release | Notes |
