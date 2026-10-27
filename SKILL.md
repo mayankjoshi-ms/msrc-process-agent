@@ -680,7 +680,7 @@ For each supported platform that needs a fix:
 ### Phase 7: PR Creation
 1. Create PR with appropriate reviewers (§6)
 2. Link PR to platform bug
-3. Add MSRC-standard PR description
+3. Add PR description following the **standard 3-section format** (see §19)
 4. Set auto-complete if requested
 
 ### Phase 8: Bug Updates (only when asked)
@@ -817,3 +817,57 @@ New-Item -ItemType SymbolicLink -Path "C:\Users\mayajoshi\.copilot\skills\msrc-p
 ```
 
 If any sync step fails, flag it to the user immediately.
+
+---
+
+## 19. PR Description Format
+
+**Every PR must use this exact 3-section structure.** Do NOT invent custom sections like "Attack Scenario", "Fix Description", "Variant Analysis", etc.
+
+### Template
+
+```markdown
+## Why is this change being made?
+
+<Describe the bug/vulnerability/problem. For MSRC PRs include:>
+- <MSRC ID(s) and vulnerability class (EoP, RCE, Info Disclosure, Tampering, etc.)>
+- <Root cause: what the attacker can do and why>
+- <Which entry points / code paths are affected>
+- <Reference to IcM if applicable>
+
+## What is being changed?
+
+<Describe the fix — what was added/modified and why.>
+
+<List the approach: new guards, API changes, containment, etc.>
+
+**Files changed:**
+- `src/path/to/file.cpp` — <brief description of change>
+- `src/path/to/file.featurestaging` — <containment metadata>
+
+<If containment is used, mention the feature key and its default state.>
+
+## How was the change tested?
+
+<Describe how the fix was validated.>
+
+**Before fix:**
+| MSRC / Scenario | Result |
+|---|---|
+| <scenario> | <vulnerable result> |
+
+**After fix:**
+| MSRC / Scenario | Result |
+|---|---|
+| <scenario> | <mitigated result> |
+
+<Mention unit tests, regression analysis, VM validation, etc.>
+```
+
+### Rules
+- Use **Markdown**, not raw HTML (no `<h2>`, `<table>`, `<ul>` tags).
+- Section headings must be exactly: `## Why is this change being made?`, `## What is being changed?`, `## How was the change tested?`
+- Before/after tables are required when repro was performed.
+- Files changed list is required in the "What" section.
+- Containment feature key and state must be mentioned if applicable.
+- MSRC ID and IcM reference go in the "Why" section, not in a separate "References" section.
