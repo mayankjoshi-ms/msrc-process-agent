@@ -372,6 +372,38 @@ IcM → MsrcCaseDetails custom field → Severity, SecurityImpact, ReactPhase
 | 2.5 or 25 | non-null | varies | ✅ Assessed — Important |
 | Other | non-null | varies | ✅ Assessed — check severity text |
 
+### Release Naming Convention
+
+MSRC releases follow the **monthly B-release** cadence named `1B` through `12B`:
+
+| Release | Month | Patch Tuesday |
+|---|---|---|
+| 1B | January | 2nd Tuesday of January |
+| 2B | February | 2nd Tuesday of February |
+| … | … | … |
+| 10B | October | 2nd Tuesday of October |
+| 11B | November | 2nd Tuesday of November |
+| 12B | December | 2nd Tuesday of December |
+
+### Code Checkin Deadline
+
+**The fix must be checked in 1 month before the target release.**
+
+| Target Release | Code Checkin Deadline |
+|---|---|
+| 1B (January) | 12B (December, prior year) |
+| 2B (February) | 1B (January) |
+| 3B (March) | 2B (February) |
+| … | … |
+| 10B (October) | 9B (September) |
+| 11B (November) | 10B (October) |
+| 12B (December) | 11B (November) |
+
+When the user provides or the IcM specifies a target release (e.g., "targeting 10B"), always:
+1. Calculate the checkin deadline (target − 1 month).
+2. Show the user: "Target: **10B** (October) → Code must be checked in by **9B** (September) timeline."
+3. If the current date is past the checkin deadline, flag a warning that the deadline may have passed.
+
 ### Release Rules
 
 | Assessment Result | Required Release | Notes |
