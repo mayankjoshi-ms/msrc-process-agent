@@ -838,27 +838,25 @@ Next action:
 
 ## 18. Skill Self-Update Protocol
 
-This skill is maintained at 2 locations + 1 symlink. **Every update** edits the primary and pushes to GitHub:
+This skill is maintained at 3 locations. **Every update** edits the primary, pushes to GitHub, and copies to Copilot runtime:
 
 | # | Role | Location | Sync Method |
 |---|---|---|---|
 | 1 | **Primary** | `D:\skill\SKILL.md` | Edit here first |
 | 2 | **GitHub** | `github.com/mayankjoshi-ms/msrc-process-agent` | `git add . && git commit -m "<change summary>" && git push` from `D:\skill` |
-| 3 | **Copilot runtime** | `C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md` | **Symlink → `D:\skill\SKILL.md`** (auto-synced, no copy needed) |
+| 3 | **Copilot runtime** | `C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md` | **File copy** from primary (symlinks do NOT work — Copilot reports size=0 and fails to discover the skill) |
 
 ### Update Sequence (mandatory)
 ```
 1. Edit D:\skill\SKILL.md
 2. cd D:\skill && git add . && git commit -m "<summary>" && git push
-3. Verify symlink still resolves: (Get-Item "C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md").Target
+3. Copy-Item "D:\skill\SKILL.md" "C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md" -Force
+4. Verify hashes match
 ```
 
-**Never** update only one location. If the symlink is broken, recreate it:
-```
-New-Item -ItemType SymbolicLink -Path "C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md" -Target "D:\skill\SKILL.md" -Force
-```
+> **⚠️ Do NOT use symlinks for the Copilot runtime copy.** Copilot's skill discovery cannot follow symlinks (reports size=0, skill not listed).
 
-If any sync step fails, flag it to the user immediately.
+**Never** update only one location. If any sync step fails, flag it to the user immediately.
 
 ---
 
