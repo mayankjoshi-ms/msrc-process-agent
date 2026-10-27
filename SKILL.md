@@ -680,11 +680,18 @@ For each supported platform that needs a fix:
 
 ### Phase 7: PR Creation
 1. Create PR with title following **§19 title format**
-2. Create PR description following **§19 description format (Markdown)**
+2. Set PR description following **§19 description format (Markdown)**
 3. Add appropriate reviewers (§6)
 4. Link PR to platform bug
-3. Add PR description following the **standard 3-section format** (see §19)
-4. Set auto-complete if requested
+5. Set auto-complete if requested
+
+> **⚠️ Do NOT use `az repos pr update --description` for multi-line descriptions — it truncates content.**
+> Use the ADO REST API instead:
+> ```powershell
+> $token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv
+> $body = @{ description = $description } | ConvertTo-Json -Depth 5 -Compress
+> Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/git/repositories/<repo>/pullrequests/<id>?api-version=7.1" -Method Patch -Body $body -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+> ```
 
 ### Phase 8: Bug Updates (only when asked)
 1. Set triage to "Consider by Triad Shiproom" (if asked, with approval)
