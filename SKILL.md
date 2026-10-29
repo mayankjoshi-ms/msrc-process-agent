@@ -1051,9 +1051,25 @@ IcM ID (from chat context or user)
 | `*fe_release*` | `Windows Server 2022` |
 | `*vb_release*` | `Windows 10 2004` |
 
-### SafeOS Bug Selection
+### Link BOTH Main OS and SafeOS DU Bugs
 
-If the PR title contains `[SafeOS DU]` or the commit references SafeOS, match the SafeOS variant of the platform bug (title contains `[SafeOS DU]`).
+> **⚠️ Every supported platform has TWO bugs: one Main OS and one SafeOS DU. BOTH must be linked to the PR.**
+
+For each platform, the task group contains:
+- **Main OS bug** — title: `[MSRC XXXXXX] <description>`
+- **SafeOS DU bug** — title: `[SafeOS DU] [MSRC XXXXXX] <description>`
+
+When linking bugs to a PR:
+1. Find ALL child bugs matching the platform's `OSG.Product`
+2. There will typically be 2 matches: one Main OS (no `[SafeOS DU]` prefix) and one SafeOS DU (has `[SafeOS DU]` prefix)
+3. **Link BOTH bugs** to the PR — do NOT link only one
+
+```powershell
+# Link BOTH platform bugs (Main OS + SafeOS DU)
+az repos pr work-item add --id <PR_ID> --work-items <main_os_bug_id> <safeos_du_bug_id> --org "https://dev.azure.com/microsoft"
+```
+
+**Exception:** The `main` branch (OSG.Product = `OS`, Family = `Windows`) typically has only ONE bug (no SafeOS DU variant for Main). Link whatever matches.
 
 ### Implementation
 
@@ -1073,15 +1089,20 @@ $token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca69
 $tg = Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/wit/workitems/${taskGroupId}?`$expand=relations&api-version=7.1" -Headers @{ Authorization = "Bearer $token" }
 $childIds = $tg.relations | Where-Object { $_.rel -eq "System.LinkTypes.Hierarchy-Forward" } | ForEach-Object { $_.url -replace '.*/(\d+)$','$1' }
 
-# Step 5: Find matching platform bug
+# Step 5: Find ALL matching platform bugs (Main OS + SafeOS DU)
+$matchedBugs = @()
 foreach ($id in $childIds) {
     $bug = Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/wit/workitems/${id}?api-version=7.1" -Headers @{ Authorization = "Bearer $token" }
     $product = $bug.fields.'OSG.Product'
-    # Match $product against PR branch using the table above
+    if ($product -eq $targetProduct) {
+        $matchedBugs += $id
+    }
 }
+# $matchedBugs should contain 2 IDs: Main OS bug + SafeOS DU bug
 
-# Step 6: Link bug to PR
-az repos pr work-item add --id <PR_ID> --work-items <matched_bug_id> --org "https://dev.azure.com/microsoft"
+# Step 6: Link ALL matched bugs to PR (both Main OS and SafeOS DU)
+$bugList = $matchedBugs -join ' '
+az repos pr work-item add --id <PR_ID> --work-items $bugList --org "https://dev.azure.com/microsoft"
 ```
 
 ### Fallback
