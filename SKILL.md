@@ -696,9 +696,9 @@ For each supported platform that needs a fix:
    - `## Why is this change being made?` — must include IcM link and MSRC ID
    - `## What is being changed?` — must list files changed
    - `## How was the change tested?` — must include before/after tables if repro was done
-3. **Bug ID** — the correct platform bug to link
+3. **Bug ID** — auto-discovered from IcM → task group → child bugs (§20). Do NOT ask user.
 4. **Reviewers** — from §6 reviewer mapping
-5. **IcM ID** — for the IcM link in the description
+5. **IcM ID** — for the IcM link in the description (extract from chat context or MSRC case)
 
 **Execution sequence:**
 
@@ -935,3 +935,86 @@ Rules:
 - Files changed list is required in the "What" section.
 - Containment feature key and state must be mentioned if applicable.
 - MSRC ID and IcM reference go in the "Why" section, not in a separate "References" section.
+
+---
+
+## 20. Automatic Bug Discovery from IcM
+
+When creating a PR, the skill must **automatically** find the correct platform bug to link. Do NOT ask the user for the bug ID if an IcM ID or MSRC ID is available in the chat context.
+
+### Discovery Chain
+
+```
+IcM ID (from chat context or user)
+  → Fetch IcM details (icm-mcp-get_incident_details_by_id)
+  → Extract MSRC case number from MsrcCaseDetails custom field: CaseNumber
+  → Extract task group ID from IcM summary HTML:
+      Regex: /workitems\/edit\/(\d+)/  or  "Link to ADO Task Group.*?(\d+)"
+  → Fetch task group from ADO REST API
+  → Get child bugs via relations (System.LinkTypes.Hierarchy-Forward)
+  → For each child bug, fetch OSG.Product field
+  → Match platform to current PR's target branch
+  → Link the matching bug to the PR
+```
+
+### Platform-to-Branch Matching
+
+| PR Branch Pattern | Platform Match (OSG.Product) |
+|---|---|
+| `main` | `OS` (Family: `Windows`) |
+| `*_ge` | `Windows (Ge)` |
+| `*_lt` | `Windows (Ge) LT` |
+| `*_ni` | `Windows 11 22H2` |
+| `*_br` | `Windows (Br)` |
+| `*fe_release*` | `Windows Server 2022` |
+| `*vb_release*` | `Windows 10 2004` |
+
+### SafeOS Bug Selection
+
+If the PR title contains `[SafeOS DU]` or the commit references SafeOS, match the SafeOS variant of the platform bug (title contains `[SafeOS DU]`).
+
+### Implementation
+
+```powershell
+# Step 1: Get IcM details
+$icm = icm-mcp-get_incident_details_by_id -incidentId <IcM_ID>
+
+# Step 2: Extract MSRC case number
+$msrcDetails = ($icm.customFields | Where-Object { $_.Name -eq "MsrcCaseDetails" }).StringValue | ConvertFrom-Json
+$msrcId = $msrcDetails.CaseNumber
+
+# Step 3: Extract task group ID from summary
+$taskGroupId = [regex]::Match($icm.summary, 'workitems/edit/(\d+)').Groups[1].Value
+
+# Step 4: Fetch task group children
+$token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv
+$tg = Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/wit/workitems/${taskGroupId}?`$expand=relations&api-version=7.1" -Headers @{ Authorization = "Bearer $token" }
+$childIds = $tg.relations | Where-Object { $_.rel -eq "System.LinkTypes.Hierarchy-Forward" } | ForEach-Object { $_.url -replace '.*/(\d+)$','$1' }
+
+# Step 5: Find matching platform bug
+foreach ($id in $childIds) {
+    $bug = Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/wit/workitems/${id}?api-version=7.1" -Headers @{ Authorization = "Bearer $token" }
+    $product = $bug.fields.'OSG.Product'
+    # Match $product against PR branch using the table above
+}
+
+# Step 6: Link bug to PR
+az repos pr work-item add --id <PR_ID> --work-items <matched_bug_id> --org "https://dev.azure.com/microsoft"
+```
+
+### Fallback
+
+If the IcM summary does not contain a task group link:
+1. Search ADO work items: `az boards query --wiql "SELECT [System.Id] FROM WorkItems WHERE [System.Title] CONTAINS 'MSRC <case_number>' AND [System.WorkItemType] = 'Task Group'" --org "https://dev.azure.com/microsoft" --project "OS"`
+2. If multiple task groups found, show them to the user and ask which one.
+3. If none found, ask the user for the task group ID.
+
+### Context Awareness
+
+The skill must **proactively** read the IcM ID from:
+1. Chat context (user mentioned it earlier in the session)
+2. IcM link in the current PR description being edited
+3. Branch name if it contains an MSRC ID (e.g., `user/mayajoshi/msrc-163522-fix`)
+4. Commit messages in the PR
+
+Do NOT ask "what bug should I link?" if the IcM/MSRC context is available. Find it automatically.
