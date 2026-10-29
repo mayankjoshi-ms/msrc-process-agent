@@ -663,7 +663,54 @@ For each supported platform that needs a fix:
 - Undocked: `#include "FeatureStaging-UndockedUpdateStack-MSRC.h"`
 - Docked: `#include <featurestaging-servicing-security.h>`
 
-**3e. Stage & Review**
+**3e. Code Porting Verification (MANDATORY)**
+
+After applying the fix, verify that ALL functional code changes from the primary branch are present in the port. Containment and include differences are expected — but the actual fix logic must be identical.
+
+**Verification steps:**
+
+1. **Identify the primary fix diff** — get the list of files and code hunks changed in the primary branch fix (usually `main`). Exclude containment files (`.featurestaging`, `.xml`, `.json` containment entries) and include headers.
+
+2. **For each code file changed in the primary fix:**
+   - Confirm the same file exists in the downlevel repo
+   - If the file path differs (docked vs undocked), identify the equivalent file
+   - Compare the functional code change (the actual fix lines) — they must match or have an equivalent adaptation
+
+3. **Diff comparison command:**
+   ```powershell
+   # Get the primary fix diff (code files only, exclude containment)
+   cd <primary_repo>
+   git diff HEAD~1 HEAD -- '*.cpp' '*.h' ':!*featurestaging*' ':!*containment*'
+
+   # Get the downlevel port diff
+   cd <downlevel_repo>
+   git diff HEAD~1 HEAD -- '*.cpp' '*.h' ':!*featurestaging*' ':!*containment*'
+
+   # Compare: every functional hunk in primary must have a match in downlevel
+   ```
+
+4. **Present a porting completeness table:**
+
+   | File | Primary Fix | Downlevel Port | Status |
+   |---|---|---|---|
+   | `src/path/file.cpp` | +5/-2 lines | +5/-2 lines | ✅ Match |
+   | `src/path/other.cpp` | +3/-1 lines | — | ❌ **MISSING** |
+
+5. **Flag any discrepancies:**
+   - ❌ **MISSING file** — file changed in primary but not in port
+   - ❌ **MISSING hunk** — some code changes present in primary but absent in port
+   - ⚠️ **ADAPTED** — code change is logically equivalent but syntactically different (e.g., different API names in docked vs undocked) — explain why
+   - ✅ **MATCH** — identical functional change
+
+6. **Expected differences (do NOT flag as missing):**
+   - Containment metadata format (XML vs JSON)
+   - Include headers (`FeatureStaging-UndockedUpdateStack-MSRC.h` vs `featurestaging-servicing-security.h`)
+   - Feature gate macro names (undocked vs docked naming)
+   - File paths that differ between repos but contain the same logic
+
+7. **Block if incomplete:** If any file or hunk is ❌ MISSING, do NOT proceed to Stage & Review. Ask the user whether to port the missing changes or skip with justification.
+
+**3f. Stage & Review**
 1. Stage only intended files (never auto-commit)
 2. Show diff to user
 3. Let user review before committing
@@ -672,6 +719,42 @@ For each supported platform that needs a fix:
 1. Build each platform repo (§11)
 2. Report pass/fail summary only
 3. If build fails, show errors and ask user how to proceed
+
+### Phase 4a: Cross-Platform Porting Summary (after all platforms are ported)
+
+After all supported platforms have been ported and built, present a **final cross-platform porting summary** to confirm nothing was missed across the entire MSRC.
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║              MSRC <ID> — Cross-Platform Porting Summary     ║
+╠══════════════════════════════════════════════════════════════╣
+
+Code files changed in primary fix (main):
+  - src/path/file1.cpp  (+12/-3)
+  - src/path/file2.cpp  (+5/-1)
+
+Porting status per platform:
+┌──────────┬──────────────────┬──────────────────┬────────┐
+│ Platform │ file1.cpp        │ file2.cpp        │ Status │
+├──────────┼──────────────────┼──────────────────┼────────┤
+│ GE       │ ✅ Match         │ ✅ Match         │ ✅ OK  │
+│ GE-LT    │ ✅ Match         │ ✅ Match         │ ✅ OK  │
+│ NI       │ ✅ Match         │ ⚠️ Adapted       │ ✅ OK  │
+│ BR       │ ✅ Match         │ ❌ MISSING       │ ❌     │
+│ FE       │ ✅ Match (docked)│ ✅ Match (docked)│ ✅ OK  │
+│ VB       │ ✅ Match (docked)│ ✅ Match (docked)│ ✅ OK  │
+└──────────┴──────────────────┴──────────────────┴────────┘
+
+Containment: Verified separately per platform (§9 triple-check)
+
+Overall: ❌ BR is missing file2.cpp port — BLOCK until resolved
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Rules:**
+- If ANY platform shows ❌, do NOT proceed to PR creation for that platform
+- ⚠️ ADAPTED entries must have a written justification (shown to user)
+- This table goes in the session status report (§17) and is referenced in PR descriptions
 
 ### Phase 5: Validation
 1. Deploy to test VM (delegate to `uso-vm-testing` if available, else ask user)
