@@ -1053,23 +1053,42 @@ IcM ID (from chat context or user)
 
 ### Link BOTH Main OS and SafeOS DU Bugs
 
-> **⚠️ Every supported platform has TWO bugs: one Main OS and one SafeOS DU. BOTH must be linked to the PR.**
+> **⚠️ Most platforms have TWO bugs: one Main OS and one SafeOS DU. Link ALL matching bugs to the PR.**
 
-For each platform, the task group contains:
-- **Main OS bug** — title: `[MSRC XXXXXX] <description>`
-- **SafeOS DU bug** — title: `[SafeOS DU] [MSRC XXXXXX] <description>`
+### SafeOS DU Bug Existence by Platform
+
+| Platform | OSG.Product | Has Main OS Bug? | Has SafeOS DU Bug? |
+|---|---|---|---|
+| **Main** | OS | ✅ | ❌ Never |
+| **GE** | Windows (Ge) | ✅ | ✅ |
+| **GE-LT** | Windows (Ge) LT | ✅ | ✅ |
+| **NI** | Windows 11 22H2 | ✅ | ✅ |
+| **BR** | Windows (Br) | ✅ | ✅ |
+| **FE** | Windows Server 2022 | ✅ | ✅ |
+| **VB** | Windows 10 2004 | ✅ | ✅ |
+| Win 10 1809 | Windows 10 1809 | ✅ | ✅ |
+| Win 10 1607 | Windows 10 1607 | ✅ | ✅ |
+| Win 8.1 | Windows 8.1 | ✅ | ❌ Never |
+| Server 2012 | Windows Server 2012 | ✅ | ❌ Never |
+| GE Hotpatch | Windows (Ge) Hotpatch | ✅ | ❌ Never |
+| GE-LT Hotpatch | Windows (Ge) LT Hotpatch | ✅ | ❌ Never |
+| Server 2022 Hotpatch | Windows Server 2022 Hotpatch | ✅ | ❌ Never |
+
+**Rule:** SafeOS DU bugs exist for **GE through Win 10 1607** (inclusive). They do NOT exist for Main, Win 8.1, Server 2012, or any Hotpatch platform.
 
 When linking bugs to a PR:
 1. Find ALL child bugs matching the platform's `OSG.Product`
-2. There will typically be 2 matches: one Main OS (no `[SafeOS DU]` prefix) and one SafeOS DU (has `[SafeOS DU]` prefix)
-3. **Link BOTH bugs** to the PR — do NOT link only one
+2. For platforms GE–Win 10 1607: expect 2 matches (Main OS + SafeOS DU). **Link BOTH.**
+3. For Main, Win 8.1, Server 2012, Hotpatch: expect 1 match (Main OS only). Link it.
+4. If a SafeOS DU bug is expected but not found, flag it to the user — do not silently skip.
 
 ```powershell
-# Link BOTH platform bugs (Main OS + SafeOS DU)
+# For platforms with SafeOS DU (GE through Win 10 1607):
 az repos pr work-item add --id <PR_ID> --work-items <main_os_bug_id> <safeos_du_bug_id> --org "https://dev.azure.com/microsoft"
-```
 
-**Exception:** The `main` branch (OSG.Product = `OS`, Family = `Windows`) typically has only ONE bug (no SafeOS DU variant for Main). Link whatever matches.
+# For Main / Win 8.1 / Server 2012 / Hotpatch (no SafeOS DU):
+az repos pr work-item add --id <PR_ID> --work-items <main_os_bug_id> --org "https://dev.azure.com/microsoft"
+```
 
 ### Implementation
 
