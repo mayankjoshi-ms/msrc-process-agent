@@ -26,8 +26,8 @@ This skill is **self-sufficient**. It does not depend on any preloaded skill. It
    - ✅ Full Markdown description with all 3 sections (Why/What/How)
    - ✅ IcM link in the description (`https://portal.microsofticm.com/imp/v5/incidents/details/<ID>/summary`)
    - ✅ Platform bug linked to the PR (`az repos pr work-item add`)
-   - ✅ Reviewers assigned
    If ANY of these cannot be completed, do NOT create the PR — flag the blocker to the user instead.
+   - ⛔ Do NOT add reviewers — the user will add reviewers manually.
 
 ---
 
@@ -780,8 +780,9 @@ Overall: ❌ BR is missing file2.cpp port — BLOCK until resolved
    - `## What is being changed?` — must list files changed
    - `## How was the change tested?` — must include before/after tables if repro was done
 3. **Bug ID** — auto-discovered from IcM → task group → child bugs (§20). Do NOT ask user.
-4. **Reviewers** — from §6 reviewer mapping
-5. **IcM ID** — for the IcM link in the description (extract from chat context or MSRC case)
+4. **IcM ID** — for the IcM link in the description (extract from chat context or MSRC case)
+
+> ⛔ **Do NOT add reviewers.** The user will add reviewers manually after PR creation.
 
 **Execution sequence:**
 
@@ -797,15 +798,13 @@ Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/git/repositorie
 # Step 3: Link platform bug
 az repos pr work-item add --id <PR_ID> --work-items <BUG_ID> --org "https://dev.azure.com/microsoft"
 
-# Step 4: Add reviewers
-az repos pr reviewer add --id <PR_ID> --reviewers <alias1> <alias2> --org "https://dev.azure.com/microsoft"
+# Do NOT add reviewers — user handles this manually
 ```
 
 **Post-creation verification (mandatory):**
 - Confirm title matches §19 format
 - Confirm description has all 3 sections and IcM link
 - Confirm bug is linked (`az repos pr work-item list --id <PR_ID>`)
-- Confirm reviewers are assigned
 
 If any verification fails, fix it immediately before reporting PR as created.
 ### Phase 8: Bug Updates (only when asked)
