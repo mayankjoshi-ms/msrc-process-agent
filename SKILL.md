@@ -350,6 +350,12 @@ Then: State = `Resolved`, Resolved Reason = `Fixed`
 - Only for confirmed duplicate MSRC bugs (after duplicate verification — see §12)
 - User explicitly asks
 - Resolved Reason = `Duplicate`
+- **Required fields** (REST API PATCH only — `az boards` CLI does NOT support this):
+  1. `System.State` = `Resolved`
+  2. `Microsoft.VSTS.Common.ResolvedReason` = `Duplicate`
+  3. `Microsoft.VSTS.Common.DuplicateIDParent` = `<duplicate-of-bug-id>` (integer)
+- All three fields must be set in a **single** `PATCH` call with `application/json-patch+json`
+- For bulk duplicate resolution, use §8a parallel writes
 
 ### Close → Won't Fix
 - Only for unsupported platforms (see platform matrix §4)
@@ -361,6 +367,84 @@ Then: State = `Resolved`, Resolved Reason = `Fixed`
 - Never approves or rejects a bug
 - Never changes triage to anything other than "Consider by Triad Shiproom"
 - Never resolves without shiproom approval + PR merge + user request
+
+---
+
+## 8a. ADO Bulk Operations (Performance-Optimized)
+
+When operating on multiple bugs (task group children, bulk resolution, etc.), use these optimized patterns instead of sequential `az boards` CLI calls.
+
+### Batch Fetch (17x faster than sequential)
+
+Use the batch REST API to fetch all bugs in a single HTTP call:
+
+```powershell
+$token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv
+$body = @{
+    ids = @(64852948, 64852946, 64852949)  # all child bug IDs
+    fields = @("System.Id", "System.Title", "System.State", "OSG.Product",
+               "Microsoft.VSTS.Common.ResolvedReason", "Microsoft.VSTS.Common.Release")
+} | ConvertTo-Json -Depth 3
+$bugs = Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/wit/workitemsbatch?api-version=7.1" `
+    -Method Post -Body $body -ContentType "application/json" `
+    -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Benchmarked**: 22 bugs in **0.4s** (17ms/bug) vs 6.7s sequential (304ms/bug).
+
+### Parallel Writes (55x faster than sequential)
+
+No batch update API exists — use PowerShell runspace pools for concurrent writes:
+
+```powershell
+$token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv
+$runspacePool = [runspacefactory]::CreateRunspacePool(1, 10)
+$runspacePool.Open()
+$jobs = @()
+
+foreach ($entry in $updateMap.GetEnumerator()) {
+    $ps = [powershell]::Create().AddScript({
+        param($bugId, $patchBody, $tkn)
+        Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/wit/workitems/${bugId}?api-version=7.1" `
+            -Method Patch -Body $patchBody -ContentType "application/json-patch+json" `
+            -Headers @{ Authorization = "Bearer $tkn" }
+    }).AddArgument($entry.Key).AddArgument($entry.Value).AddArgument($token)
+    $ps.RunspacePool = $runspacePool
+    $jobs += @{ Pipe=$ps; Handle=$ps.BeginInvoke() }
+}
+
+$results = foreach ($job in $jobs) { $job.Pipe.EndInvoke($job.Handle); $job.Pipe.Dispose() }
+$runspacePool.Close()
+```
+
+**Benchmarked**: 22 bugs in **1.2s** (54ms/bug) vs ~66s sequential (~3s/bug).
+
+### Duplicate Resolution Patch Body
+
+The exact JSON Patch body for resolving as Duplicate (field name is **`Microsoft.VSTS.Common.DuplicateIDParent`** — NOT `DuplicateID` or `DuplicateId`):
+
+```json
+[
+  { "op": "add", "path": "/fields/System.State", "value": "Resolved" },
+  { "op": "add", "path": "/fields/Microsoft.VSTS.Common.ResolvedReason", "value": "Duplicate" },
+  { "op": "add", "path": "/fields/Microsoft.VSTS.Common.DuplicateIDParent", "value": 64422004 }
+]
+```
+
+> ⚠️ **`az boards work-item update --reason Duplicate` does NOT work** — "Duplicate" is not a valid `--reason` value.
+> ⚠️ **`az boards work-item update --fields`** does NOT recognize `DuplicateIDParent` — only REST API works.
+
+### Recommended Workflow for Bulk Operations
+
+```
+1. Batch-fetch all child bugs from BOTH task groups (2 HTTP calls)
+2. Match bugs by OSG.Product field across task groups
+3. Present dry run table to user (§8 Golden Rule still applies)
+4. User approves → parallel-write all updates (runspace pool, 10 threads)
+5. Report results: success/fail count + per-bug status
+```
+
+**Expected total time for 22-bug duplicate resolution: ~2 seconds** (vs ~2.5 minutes sequential).
 
 ---
 
@@ -518,7 +602,8 @@ IcM ID
 ### Per-Platform Bug Discovery
 From the task group:
 1. Get all `System.LinkTypes.Hierarchy-Forward` relations
-2. For each child bug:
+2. **Batch-fetch** all child bugs in a single call (see §8a — do NOT fetch sequentially)
+3. For each child bug:
    - Read `OSG.Product` field → determine platform
    - Check title for `[SafeOS DU]` → determine Main OS vs SafeOS
    - Check for `ArtifactLink` relations with `PullRequest` → PR linked?
