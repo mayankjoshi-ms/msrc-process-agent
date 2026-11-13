@@ -733,8 +733,35 @@ For each supported platform that needs a fix:
 3. Fetch latest from upstream
 4. Create topic branch: `user/<alias>/msrc-<ID>-<description>`
 
+**3a-bis. Per-Platform Vulnerability Surface Analysis (MANDATORY)**
+
+Before applying any fix, analyze which vulnerable sites actually exist on the target platform. Do NOT assume all platforms have the same code paths — platforms diverge over time (functions renamed, refactored, or removed).
+
+For each vulnerable site identified in the primary fix (e.g., main):
+1. **Check if the function exists** on this platform (`Select-String` or `grep` for the function name)
+2. **Check if it's already protected** (does it already have the required lock/guard?)
+3. **Check if the code was refactored** (renamed function, logic merged into another function, etc.)
+4. **Check if vulnerable members exist** (e.g., `m_updatesToBeReverted`, `m_currentUpdateBeingReverted` may not exist on all platforms)
+5. **Document findings** — these go into the PR's vulnerability table (§19)
+
+Present findings to user before proceeding:
+```
+Platform: GE
+| Site | Function | Exists? | Already Protected? | Action |
+|---|---|---|---|---|
+| Site 1 — Approve | UpdateManager::Approve | ✅ Yes | ✅ shared_lock at line X | Skip — already safe |
+| Site 2 — EvaluateIpuMode | UpdateManager::EvaluateIpuMode | ✅ Yes | ❌ shared_lock insufficient | Fix required |
+| Site 3 — EvaluateReverts | UpdateManager::EvaluateReverts | ❌ No | N/A | Skip — refactored away |
+```
+
+**Rules:**
+- A site that doesn't exist = no fix needed, but MUST be documented in the PR vulnerability table
+- A site that's already protected = no fix needed, document as "Already protected" with the line number
+- A site that exists but is refactored = check if the equivalent code is protected; document either way
+- **Never blindly port all fix sites** — only fix what's actually vulnerable on each platform
+
 **3b. Apply Fix**
-1. Cherry-pick or manually port the fix from the primary branch
+1. Cherry-pick or manually port the fix from the primary branch — **only for sites identified as needing a fix in 3a-bis**
 2. Adapt code paths if needed (docked vs undocked differences)
 3. Follow coding standards from AGENTS.md and copilot-instructions.md
 
@@ -1096,12 +1123,43 @@ Rules:
 
 ### Description Rules
 - **Markdown only** — no raw HTML (`<h2>`, `<table>`, `<ul>`, `<b>`, etc.). ADO renders Markdown natively.
+- **4000-character hard limit** — ADO rejects PR descriptions over 4000 characters. Write concisely. If approaching the limit, trim the "How was the change tested?" section first (keep the before/after table, cut prose).
 - Section headings must be exactly: `## Why is this change being made?`, `## What is being changed?`, `## How was the change tested?`
 - Do NOT invent custom sections like "Attack Scenario", "Fix Description", "Variant Analysis", "References", etc.
 - Before/after tables are required when repro was performed.
 - Files changed list is required in the "What" section.
 - Containment feature key and state must be mentioned if applicable.
 - MSRC ID and IcM reference go in the "Why" section, not in a separate "References" section.
+
+### Vulnerable Sites and Fix Status Table (REQUIRED for all MSRC PRs)
+
+Every MSRC PR description MUST include a **"Vulnerable sites and fix status"** table in the "Why" section, immediately after the IcM link line. This table documents each known vulnerable site from the primary fix and its status **on this specific platform**.
+
+**Template (add after the IcM link line in "Why"):**
+```markdown
+### Vulnerable sites and fix status
+
+| Site | Function | Status on <PLATFORM> |
+|---|---|---|
+| Site 1 — <Name> | `ClassName::Function` — <brief desc> | <status> |
+| Site 2 — <Name> | `ClassName::Function` — <brief desc> | <status> |
+| Site 3 — <Name> | N/A | <status> |
+```
+
+**Status values (use exactly one per site):**
+| Status | When to use |
+|---|---|
+| `Fixed in this PR (<brief how>)` | Site is vulnerable and this PR fixes it |
+| `Already protected (<lock type> at line X)` | Site exists but already has adequate protection |
+| `Code refactored away on <PLATFORM> (no <function>, <member1>, or <member2>)` | Function and related members don't exist |
+| `Does not exist on docked (<PLATFORM>)` | Code path not present on docked platforms |
+
+**Rules:**
+- The table must list ALL sites from the primary fix — even those that don't need a fix on this platform
+- Each platform's table is DIFFERENT — do NOT copy from main or another platform
+- Use findings from §13 Phase 3 step 3a-bis (per-platform vulnerability analysis)
+- If a site was refactored into another function that IS protected, explain briefly (e.g., "revert logic in `EvaluateAsyncWorkQueue` already protected by `shared_lock`")
+- Reference the main PR at the end of the description for cross-platform traceability
 
 ---
 
