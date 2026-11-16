@@ -185,9 +185,11 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
     <branchToken>pull/.*</branchToken>
   </enabledByDefaultBranchTokens>
   <email>mayajoshi@microsoft.com</email>
-  <changeTime>YYYY-MM-DDTHH:MM:SS.0000000-XX:XX</changeTime>
+  <changeTime>OnReboot</changeTime>
 </feature>
 ```
+
+> **⚠️ `<changeTime>` accepts ONLY `OnRead`, `OnReload`, or `OnReboot`** (schema-enforced regex `\s*(OnRead|OnReload|OnReboot)\s*`). Do NOT use timestamps — builds will fail with schema validation errors. All existing entries use `OnReboot`.
 
 **Downlevel branch** entry (GE, GE-LT, NI, BR):
 ```xml
@@ -199,7 +201,7 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
   <stage>EnabledByDefault</stage>
   <!-- NO enabledByDefaultBranchTokens for downlevel -->
   <email>mayajoshi@microsoft.com</email>
-  <changeTime>YYYY-MM-DDTHH:MM:SS.0000000-XX:XX</changeTime>
+  <changeTime>OnReboot</changeTime>
 </feature>
 ```
 
