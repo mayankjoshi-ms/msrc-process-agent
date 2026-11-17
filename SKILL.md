@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.2
+version: 2026.11.17.3
 ---
 
 # MSRC Process Agent
@@ -1108,6 +1108,42 @@ Different build system — **ask user** for build instructions for docked platfo
 
 ### Repo Skill Delegation
 If the `uso-vm-testing` skill is available, delegate VM deployment to it.
+
+### Sequential Build — One Repo at a Time
+
+**⚠️ NEVER build multiple repos in parallel.** Each `dazzle.ps1 + bz/bcz` spawns a full MSBuild process that consumes significant CPU and memory. Running 2+ builds simultaneously will freeze the system.
+
+**Rules:**
+1. Build repos **one at a time**, sequentially — wait for each build to fully complete before starting the next.
+2. **Close the previous dazzle shell** before opening a new one for the next repo — dazzle sets env vars that conflict across repos.
+3. Follow this order (most critical first):
+   ```
+   main → GE → LT → NI → BR → (docked if applicable)
+   ```
+4. After each build completes, record pass/fail before moving to the next.
+
+**Example — building 3 platform repos:**
+```powershell
+# 1. Build main — wait for completion
+cd E:\uus; . .\build\dazzle.ps1 -amd64chk; cd src\orchestrator; bz
+# ✅ main done — close this shell
+
+# 2. Build GE — new shell, wait for completion
+cd E:\uus-ge; . .\build\dazzle.ps1 -amd64chk; cd src\orchestrator; bz
+# ✅ GE done — close this shell
+
+# 3. Build LT — new shell, wait for completion
+cd E:\uus-lt; . .\build\dazzle.ps1 -amd64chk; cd src\orchestrator; bz
+# ✅ LT done
+```
+
+**Do NOT do this:**
+```powershell
+# ❌ WRONG — parallel builds will freeze the system
+Start-Job { cd E:\uus; ... bz }
+Start-Job { cd E:\uus-ge; ... bz }   # System freezes
+Start-Job { cd E:\uus-lt; ... bz }   # System unresponsive
+```
 If the `uus-change-tracker` skill is available, use it to track CI builds.
 If the `/orchestrator-build-and-test` skill is available, use it for build workflow.
 
