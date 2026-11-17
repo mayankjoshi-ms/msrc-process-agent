@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.1
+version: 2026.11.17.2
 ---
 
 # MSRC Process Agent
@@ -1868,3 +1868,41 @@ if (-not (Test-Path $stagingTool)) {
 6. Run repro scenario — confirm fix blocks the attack
 7. Run regression scenario — confirm normal operation still works
 ```
+
+### VM Checkpoints
+
+Create a Hyper-V checkpoint at **every major milestone** during VM testing. This lets you roll back to any known-good state without re-deploying from scratch.
+
+**Naming convention:** `MSRC-<ID>-<milestone>`
+
+| When | Checkpoint Name | Purpose |
+|---|---|---|
+| After VM version preflight passes | `MSRC-<ID>-baseline` | Clean state before any changes |
+| After enabling page heap / gflags | `MSRC-<ID>-pageheap-enabled` | Roll back if page heap causes issues |
+| After successful repro (vuln confirmed) | `MSRC-<ID>-repro-done` | Reuse for re-validation without re-setup |
+| After sfpcopy + StagingTool + reboot | `MSRC-<ID>-fix-deployed` | Roll back if fix causes regression |
+| After fix validated (repro blocked) | `MSRC-<ID>-fixed` | Proof point — keep for auditor review |
+
+**Commands:**
+
+```powershell
+# Create checkpoint (run on HOST, not inside the VM)
+Checkpoint-VM -Name "<VMName>" -SnapshotName "MSRC-170271-baseline"
+
+# List checkpoints
+Get-VMSnapshot -VMName "<VMName>"
+
+# Restore to a checkpoint
+Restore-VMSnapshot -VMName "<VMName>" -Name "MSRC-170271-repro-done" -Confirm:$false
+Start-VM -Name "<VMName>"
+```
+
+**Rules:**
+- Always create checkpoints from the **host machine**, not from inside the VM.
+- Use the exact naming convention — no freeform names.
+- The `baseline` checkpoint is **mandatory** before any binary replacement.
+- The `repro-done` checkpoint is **mandatory** before deploying the fix — this is your rollback point.
+- Delete old checkpoints after the MSRC case is fully closed to save disk space:
+  ```powershell
+  Remove-VMSnapshot -VMName "<VMName>" -Name "MSRC-170271-*"
+  ```
