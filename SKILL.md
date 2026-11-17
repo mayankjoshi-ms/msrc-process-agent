@@ -127,10 +127,10 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 | Platform | ADO Product | Repo | Branch Pattern | Status |
 |---|---|---|---|---|
 | **Main** | OS | uus | `main` | ✅ Supported |
-| **GE (GEBR)** | Windows (Ge) | uus | `release/v15/XXXXb_gebr` | ✅ Supported — combined GE+BR branch |
+| **GE** | Windows (Ge) | uus | `release/v15/XXXXb_ge` or `release/v15/XXXXb_gebr` | ✅ Supported — check remote branch |
 | **GE-LT** | Windows (Ge) LT | uus | `release/v15/XXXXb_lt` | ✅ Supported |
 | **NI** | Windows 11 22H2 | uus | `release/v14/XXXXb_ni` | ✅ Supported |
-| **BR** | Windows (Br) | uus | ⛔ No separate branch — covered by GEBR | ✅ Bugs linked to GE PR |
+| **BR** | Windows (Br) | uus | `release/v15/XXXXb_br` or covered by `*_gebr` | ✅ Supported — check remote branch |
 | **FE** | Windows Server 2022 | os.2020 | `official/fe_release_svc_XXXXb` | ✅ Supported (docked) |
 | **VB** | Windows 10 2004 | os.2020 | `official/vb_release_svc_XXXXb` | ✅ Supported (docked) |
 | GE Hotpatch | Windows (Ge) Hotpatch | — | — | ❓ Unknown — ask user |
@@ -1189,23 +1189,38 @@ IcM ID (from chat context or user)
 | PR Branch Pattern | Platform Match (OSG.Product) |
 |---|---|
 | `main` | `OS` (Family: `Windows`) |
-| `*_gebr` | `Windows (Ge)` **+ `Windows (Br)`** (combined branch) |
-| `*_ge` | `Windows (Ge)` (legacy — use `*_gebr` for new releases) |
+| `*_gebr` | `Windows (Ge)` **+ `Windows (Br)`** (combined — 4 bugs) |
+| `*_ge` | `Windows (Ge)` only (separate — 2 bugs) |
 | `*_lt` | `Windows (Ge) LT` |
 | `*_ni` | `Windows 11 22H2` |
-| `*_br` | `Windows (Br)` (legacy — now covered by `*_gebr`) |
+| `*_br` | `Windows (Br)` only (separate — 2 bugs) |
 | `*fe_release*` | `Windows Server 2022` |
 | `*vb_release*` | `Windows 10 2004` |
 
-### Combined GEBR Branch Rule
+### Combined GEBR Branch Detection
 
-> **⚠️ GE and BR are now combined into a single `gebr` branch (e.g., `release/v15/2701b_gebr`). Do NOT create a separate BR PR.**
+> **⚠️ GE and BR may have separate branches OR a combined `gebr` branch. Always check the remote first — never assume.**
 
-- Create ONE PR targeting the `gebr` branch (this is the GE PR)
+**Detection logic:**
+```powershell
+# Check what remote branches exist for the target release
+git ls-remote --heads origin "release/v15/XXXXb_ge*" "release/v15/XXXXb_br*"
+
+# If *_gebr exists → combined branch, one GE PR covers both GE and BR
+# If *_ge and *_br exist separately → separate branches, create separate PRs
+# If only *_ge exists (no *_br, no *_gebr) → ask user
+```
+
+**If combined (`*_gebr`):**
+- Create ONE PR targeting the `gebr` branch
 - Link **4 bugs** to this PR: GE Main OS + GE SafeOS DU + BR Main OS + BR SafeOS DU
-- The PR title uses `[GE]` (not `[GEBR]`): `[GE] <fix description> (MSRC <ID>)`
-- No separate code port or PR is needed for BR — the GEBR branch covers both platforms
-- If the branch pattern is `*_gebr`, always match BOTH `Windows (Ge)` and `Windows (Br)` bugs
+- The PR title uses `[GE]`: `[GE] <fix description> (MSRC <ID>)`
+- No separate code port or PR needed for BR
+
+**If separate (`*_ge` + `*_br`):**
+- Create separate PRs for GE and BR as normal
+- GE PR gets 2 bugs (GE Main OS + GE SafeOS DU)
+- BR PR gets 2 bugs (BR Main OS + BR SafeOS DU)
 
 ### Link BOTH Main OS and SafeOS DU Bugs
 
@@ -1216,10 +1231,10 @@ IcM ID (from chat context or user)
 | Platform | OSG.Product | Has Main OS Bug? | Has SafeOS DU Bug? | Linked to PR |
 |---|---|---|---|---|
 | **Main** | OS | ✅ | ❌ Never | Main PR (1 bug) |
-| **GE** | Windows (Ge) | ✅ | ✅ | GE/GEBR PR |
+| **GE** | Windows (Ge) | ✅ | ✅ | GE or GEBR PR (check remote) |
 | **GE-LT** | Windows (Ge) LT | ✅ | ✅ | GE-LT PR |
 | **NI** | Windows 11 22H2 | ✅ | ✅ | NI PR |
-| **BR** | Windows (Br) | ✅ | ✅ | ⚠️ **GE/GEBR PR** (no separate BR PR) |
+| **BR** | Windows (Br) | ✅ | ✅ | BR PR or GEBR PR (check remote) |
 | **FE** | Windows Server 2022 | ✅ | ✅ | FE PR |
 | **VB** | Windows 10 2004 | ✅ | ✅ | VB PR |
 | Win 10 1809 | Windows 10 1809 | ✅ | ✅ | (unsupported — close) |
@@ -1232,14 +1247,15 @@ IcM ID (from chat context or user)
 
 **Rules:**
 - SafeOS DU bugs exist for **GE through Win 10 1607** (inclusive). They do NOT exist for Main, Win 8.1, Server 2012, or any Hotpatch platform.
-- **GEBR combined branch:** The GE PR (targeting `*_gebr`) gets **4 bugs**: GE Main OS + GE SafeOS DU + BR Main OS + BR SafeOS DU. No separate BR PR.
+- **GEBR:** If the target branch is `*_gebr`, the GE PR gets **4 bugs**. If GE and BR are separate branches, each gets its own 2 bugs.
 
 When linking bugs to a PR:
 1. Find ALL child bugs matching the platform's `OSG.Product`
-2. For the GE/GEBR PR: match BOTH `Windows (Ge)` AND `Windows (Br)` products → expect **4 bugs** (GE Main + GE SafeOS + BR Main + BR SafeOS). **Link ALL 4.**
-3. For other platforms GE-LT–Win 10 1607: expect 2 matches (Main OS + SafeOS DU). **Link BOTH.**
-4. For Main, Win 8.1, Server 2012, Hotpatch: expect 1 match (Main OS only). Link it.
-5. If a SafeOS DU bug is expected but not found, flag it to the user — do not silently skip.
+2. **Check the target branch name:** If it contains both `ge` and `br` (i.e., `*_gebr`), match BOTH `Windows (Ge)` AND `Windows (Br)` → expect **4 bugs**. Link ALL 4.
+3. If the target branch is `*_ge` only (no `br`), match only `Windows (Ge)` → expect **2 bugs**. Create a separate BR PR with its own 2 bugs.
+4. For other platforms GE-LT–Win 10 1607: expect 2 matches (Main OS + SafeOS DU). **Link BOTH.**
+5. For Main, Win 8.1, Server 2012, Hotpatch: expect 1 match (Main OS only). Link it.
+6. If a SafeOS DU bug is expected but not found, flag it to the user — do not silently skip.
 
 ```powershell
 # For GEBR PR (4 bugs: GE + BR, each with Main OS + SafeOS DU):
