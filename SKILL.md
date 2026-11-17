@@ -1119,21 +1119,31 @@ This skill is maintained at 3 locations. **Every update** edits the primary, pus
 ### PR Title Format
 
 ```
-[<branch>] <short fix description> (MSRC <ID>)
+[<platform>][MSRC <ID>] <short fix description>
 ```
 
-| Platform | Example Title |
+For multiple MSRCs:
+```
+[<platform>][MSRC <ID1>,<ID2>,<ID3>] <brief description of each fix>
+```
+
+| Scenario | Example Title |
 |---|---|
-| Main | `[main] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
-| GE | `[GE] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
-| GE-LT | `[GE-LT] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
-| NI | `[NI] Fix arbitrary memory increment via WIL ProcessLocalStorageData::Acquire (MSRC 163522)` |
+| Single MSRC (main) | `[main][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| Single MSRC (GE) | `[GE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| Single MSRC (GE-LT) | `[GE-LT][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| Combined GEBR | `[GE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| Separate BR | `[BR][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| Docked (FE) | `[FE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| 2 MSRCs | `[NI][MSRC 155686,170271] Fix Approve/EvaluateIpuMode UAF race and UOP auth bypass` |
+| 3+ MSRCs | `[GE][MSRC 155686,163522,170271] Fix Approve UAF race, WIL token escalation, and UOP auth bypass` |
 
 Rules:
-- Branch name in `[]` brackets at the start — use the short platform name (main, GE, GE-LT, NI, BR, FE, VB)
-- Fix description should be concise (one line)
-- MSRC ID(s) in parentheses at the end
-- For non-MSRC PRs, use `(Bug <ID>)` instead of `(MSRC <ID>)`
+- Platform name in first `[]` — use the short platform name (main, GE, GE-LT, NI, BR, FE, VB)
+- MSRC ID(s) in second `[]` — format: `MSRC <ID>` or `MSRC <ID1>,<ID2>` for multiple
+- Fix description follows — concise, one line
+- **For multiple MSRCs:** each MSRC gets a short `<function/component> <vulnerability>` mention, joined with commas/and. Never use generic text like "Fix multiple security vulnerabilities".
+- For non-MSRC PRs, use `[<platform>][Bug <ID>]` instead of `[<platform>][MSRC <ID>]`
 
 ### PR Description Template
 
