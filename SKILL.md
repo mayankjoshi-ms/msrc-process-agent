@@ -1,6 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
+version: 2026.11.17.1
 ---
 
 # MSRC Process Agent
@@ -28,6 +29,47 @@ This skill is **self-sufficient**. It does not depend on any preloaded skill. It
    - ✅ Platform bug linked to the PR (`az repos pr work-item add`)
    If ANY of these cannot be completed, do NOT create the PR — flag the blocker to the user instead.
    - ⛔ Do NOT add reviewers — the user will add reviewers manually.
+
+---
+
+## 1b. Version Check
+
+**Loaded version**: read from `version:` in the YAML front matter above (e.g., `2026.11.17.1`).
+
+### When to check
+
+Run a version preflight **before any bulk write operation** — filling multiple bug templates, closing multiple bugs, creating multiple PRs, or any batch that modifies ≥ 2 ADO work items.
+
+### How to check
+
+```
+1. Read the skill file on disk:
+   Path: C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md
+   Extract the `version:` line from the YAML front matter.
+
+2. Compare disk version to loaded version (from this document's front matter).
+
+3. If versions DIFFER:
+   ⚠️ STOP — tell the user:
+   "Skill has been updated (loaded: <old>, disk: <new>). Please reload the skill
+    before proceeding — say 'load msrc-process-agent' to get the latest version."
+   Do NOT proceed with the bulk write.
+
+4. If versions MATCH:
+   ✅ Proceed normally.
+```
+
+### Version format
+
+`YYYY.MM.DD.N` — date of last update + revision number (N starts at 1, increments for same-day updates).
+
+### Updating the version
+
+**Every time the skill file is edited**, the `version:` field in the front matter MUST be bumped:
+- Same day as previous version → increment N (e.g., `2026.11.17.1` → `2026.11.17.2`)
+- Different day → reset to `<today>.1` (e.g., `2026.11.18.1`)
+
+This is part of the sync protocol (alongside git commit + push + copy to runtime dir).
 
 ---
 
