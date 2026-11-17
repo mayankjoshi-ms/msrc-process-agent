@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.3
+version: 2026.11.17.5
 ---
 
 # MSRC Process Agent
@@ -1148,6 +1148,129 @@ If the `uus-change-tracker` skill is available, use it to track CI builds.
 If the `/orchestrator-build-and-test` skill is available, use it for build workflow.
 
 ---
+
+## 11b. Branch Safety — Multi-MSRC Concurrency
+
+When working on multiple MSRCs simultaneously, each MSRC uses its own topic branch. Since multiple sessions may share the same repo directory, branch conflicts are inevitable if both MSRCs use the same repo checkout.
+
+### The Problem
+
+```
+Session A (MSRC-123)              Session B (MSRC-456)
+────────────────────              ────────────────────
+E:\uus-ge on msrc-123 ✅
+editing files...
+                                  E:\uus-ge checkout msrc-456 ← CONFLICT!
+                                  Session A's work is now on wrong branch 💥
+```
+
+### Solution: Git Worktrees
+
+When 2+ MSRCs need the **same repo** concurrently, use **git worktrees**. Each worktree is an independent working directory with its own branch, sharing the same `.git` database — no duplication, no conflicts.
+
+**Directory convention:** `<repo>-msrc-<ID>`
+
+```powershell
+# From the main repo checkout, create a worktree for the second MSRC
+cd E:\uus-ge
+git worktree add E:\uus-ge-msrc-456 -b user/mayajoshi/msrc-456-description official/main
+
+# Now you have:
+#   E:\uus-ge            → working on msrc-123 (original checkout)
+#   E:\uus-ge-msrc-456   → working on msrc-456 (worktree, independent branch)
+```
+
+**Worktree commands:**
+```powershell
+# List all worktrees for a repo
+git -C E:\uus-ge worktree list
+
+# Create worktree from existing remote branch
+git -C E:\uus-ge worktree add E:\uus-ge-msrc-456 user/mayajoshi/msrc-456-description
+
+# Create worktree with new branch from upstream
+git -C E:\uus-ge worktree add E:\uus-ge-msrc-456 -b user/mayajoshi/msrc-456-description official/main
+
+# Remove worktree after MSRC is done
+git -C E:\uus-ge worktree remove E:\uus-ge-msrc-456
+```
+
+**Building in a worktree** — works exactly like a normal repo checkout:
+```powershell
+cd E:\uus-ge-msrc-456
+. .\build\dazzle.ps1 -amd64chk
+cd src\orchestrator
+bz
+```
+
+### Decision: When to Use Worktrees vs Branch Switching
+
+| Situation | Action |
+|---|---|
+| 1 MSRC per repo | Normal branch checkout — no worktree needed |
+| 2+ MSRCs in same repo, **both actively being worked on** | **Use worktrees** — one worktree per MSRC |
+| 2+ MSRCs in same repo, one is done/PR merged | Stay on single checkout — just switch branches |
+| Session starts and repo is on a different MSRC's branch | Check if other MSRC is active (uncommitted changes?) — if yes → worktree; if no → switch |
+
+### Session Start: Repo State Check
+
+At the start of every session, for each repo the MSRC needs:
+
+```
+1. Check current branch:
+   $current = git -C "<repo>" branch --show-current
+
+2. Check if dirty:
+   $dirty = git -C "<repo>" status --porcelain
+
+3. Decision:
+   If $current matches expected MSRC branch AND clean → ✅ proceed
+   If $current matches expected MSRC branch AND dirty → ask: commit, stash, or continue
+   If $current is a DIFFERENT MSRC branch AND clean → switch to expected branch
+   If $current is a DIFFERENT MSRC branch AND dirty → ⚠️ another MSRC has active work here
+      → Ask user: "E:\uus-ge has uncommitted changes for MSRC-123.
+         Create a worktree at E:\uus-ge-msrc-456 for your MSRC instead?"
+```
+
+### Branch Preflight Check (MANDATORY)
+
+Even with worktrees, **always verify the branch before every git write operation** (commit, push, cherry-pick):
+
+```powershell
+$current = git -C "<repo-path>" branch --show-current
+$expected = "user/<alias>/msrc-<ID>-<description>"
+if ($current -ne $expected) {
+    # ⚠️ STOP — wrong branch! Show mismatch and ask user.
+}
+```
+
+### Worktree Cleanup
+
+After an MSRC is fully closed (all PRs merged, bugs resolved):
+```powershell
+# Remove the worktree
+git -C E:\uus-ge worktree remove E:\uus-ge-msrc-456
+
+# Delete the topic branch if merged
+git -C E:\uus-ge branch -d user/mayajoshi/msrc-456-description
+```
+
+### Phase 3 Integration
+
+In Phase 3 (§13), step **3a. Branch Setup** must include worktree awareness:
+
+```
+3a. Branch Setup (updated)
+1. Confirm repo path with user
+2. Check current branch and dirty state
+3. If repo is on a different MSRC's branch with uncommitted changes:
+   → Offer to create a worktree for this MSRC
+4. If clean wrong branch → ask: switch or worktree?
+5. If correct branch → check clean/dirty, proceed
+6. Fetch latest from upstream
+7. Create topic branch: user/<alias>/msrc-<ID>-<description>
+8. Record expected branch per repo for this session's preflight checks
+```
 
 ## 12. Duplicate Verification
 
