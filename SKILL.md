@@ -301,163 +301,177 @@ user/<alias>/msrc-<MSRC-ID>-<short-description>
 ### Security Bug Case Approval Template Sections
 The ReproSteps field MUST use the **"Servicing - Security Bug Case Approval Template"** HTML table format. Do NOT use plain HTML headings (`<h2>`, `<h3>`) — the content must be inside a 2-column HTML table.
 
+**⚠️ CRITICAL FORMATTING RULES (learned from reference bug 62575488):**
+1. **Never** use `<h2>`, `<h3>`, `<p>`, or `<ul>/<li>` tags — ADO renders them inconsistently
+2. Use `<div>` tags for each paragraph/line of content
+3. Use `<br>` inside `<div>` for line breaks between paragraphs
+4. Use literal `•` character (U+2022) for bullet points, each in its own `<div>`
+5. Use `&nbsp;` around inline code identifiers (e.g., `&nbsp;FunctionName()&nbsp;`)
+6. Use `<b>` for bold text and sub-headings within a section
+7. Use numbered steps (1, 2, 3...) in `<div>` tags for attack scenario repro steps
+8. The ENS section header must be **"ENS-Specific Sec Questions"** (not "ENS-Specific")
+9. Section separator rows (Case Details, Comms, ENS) use `background:rgb(204, 204, 204)` or `background:rgb(221, 221, 221)`
+
 **Required table structure:**
 
 ```html
 <table width="100%" style="border-collapse:collapse;">
   <thead>
-    <tr>
-      <td colspan="2" style="border:1pt solid windowtext;background:gray;padding:4px;">
-        <b>Servicing - Security Bug Case Approval Template</b>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2" style="border:1pt solid windowtext;padding:4px;">
-        Version 2022.1.04
-      </td>
-    </tr>
+    <tr><td colspan="2" style="border:1pt solid windowtext;background:gray;padding:4px;">
+      <b><span style="color:black;">Servicing - Security Bug Case Approval Template</span></b>
+    </td></tr>
+    <tr><td colspan="2" style="border:1pt solid windowtext;padding:4px;">
+      Version 2022.1.04
+    </td></tr>
   </thead>
   <tbody>
+    <tr><td colspan="2" style="border:1pt solid windowtext;background:rgb(221, 221, 221);padding:4px;">
+      <b><span style="color:black;">Case Details</span></b>
+    </td></tr>
+
+    <!-- Attack Scenario -->
     <tr>
-      <td colspan="2" style="border:1pt solid windowtext;background:#ddd;padding:4px;">
-        <b>Case Details</b>
-      </td>
-    </tr>
-    <!-- Each section is a row: label in left td, content in right td -->
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Attack Scenario</b>
-      </td>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;"><b>Attack Scenario</b></td>
       <td style="border:1pt solid windowtext;padding:4px;">
-        <!-- Attack scenario content here -->
+        <div>Description of vulnerability...</div>
+        <div><br></div>
+        <div><b>MSRC-XXXXXX (VulnType — Short Title):</b></div>
+        <div><br></div>
+        <div>1. Step one of the attack</div>
+        <div>2. Step two of the attack</div>
+        <div>3. Privilege boundary crossed: Standard user → SYSTEM</div>
+        <div><br></div>
+        <div>CWE-XXX: Category. Severity: Important.</div>
       </td>
     </tr>
+
+    <!-- Fix Description -->
     <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Fix Description</b>
-      </td>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;"><b>Fix Description</b></td>
       <td style="border:1pt solid windowtext;padding:4px;">
-        <!-- Fix description content here -->
+        <div>What was fixed...</div>
+        <div><br></div>
+        <div><b>Containment:</b></div>
+        <div><br></div>
+        <div>• Fix is behind velocity feature flag: &nbsp;Feature_MSRCXXXXXX&nbsp;</div>
+        <div>• Release branches use &nbsp;EnabledByDefault&nbsp;; main uses &nbsp;AlwaysDisabled&nbsp;</div>
+        <div>• When flag is disabled, old code path preserved — allows safe rollback</div>
+        <div><br></div>
+        <div>File changed: &nbsp;src/path/to/file.cpp&nbsp;</div>
       </td>
     </tr>
+
+    <!-- Validation -->
     <tr>
       <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
         <b>Validation / Regression Risk Level of the Fix &amp; Mitigation</b>
       </td>
       <td style="border:1pt solid windowtext;padding:4px;">
-        <!-- Validation content here -->
+        <div>Regression risk is low:</div>
+        <div><br></div>
+        <div>• Reason 1 why regression risk is low</div>
+        <div>• Reason 2 why regression risk is low</div>
+        <div><br></div>
+        <div>Validation performed:</div>
+        <div><br></div>
+        <div><b>Before fix:</b></div>
+        <div><br></div>
+        <div>• Standard user calls Foo() — Succeeds (VULNERABLE)</div>
+        <div>• Admin calls Foo() — Succeeds</div>
+        <div><br></div>
+        <div><b>After fix:</b></div>
+        <div><br></div>
+        <div>• Standard user calls Foo() — ACCESS_DENIED (BLOCKED)</div>
+        <div>• Admin calls Foo() — Succeeds — no regression</div>
+        <div><br></div>
+        <div>• Validated on X, Y, Z VMs</div>
+        <div>• Normal USO functionality works correctly post-fix</div>
       </td>
     </tr>
+
+    <!-- Variant Analysis -->
     <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Variant Analysis</b>
-      </td>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;"><b>Variant Analysis</b></td>
       <td style="border:1pt solid windowtext;padding:4px;">
-        <!-- Variant analysis content here -->
+        <div>• Analysis point 1</div>
+        <div>• Analysis point 2</div>
       </td>
     </tr>
+
+    <!-- Changes Outside Component Area (uses 3-column sub-table per official template) -->
     <tr>
       <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
         <b>Changes Outside Component Area</b>
       </td>
       <td style="border:1pt solid windowtext;padding:4px;">
-        <!-- Component table: Component | Binary/Library | Description | Owner -->
+        <div>If there are dependencies or impact to other components, please list them here:</div>
+        <table style="border-collapse:collapse;">
+          <tbody>
+            <tr>
+              <td style="border:1pt solid windowtext;padding:4px;"><b>Component Area</b></td>
+              <td style="border:1pt solid windowtext;padding:4px;"><b>Component Duo/Lead Signoff</b></td>
+              <td style="border:1pt solid windowtext;padding:4px;"><b>Nature of changes in this component</b></td>
+            </tr>
+            <tr>
+              <td style="border:1pt solid windowtext;padding:4px;"><!-- component --></td>
+              <td style="border:1pt solid windowtext;padding:4px;"><!-- signoff --></td>
+              <td style="border:1pt solid windowtext;padding:4px;"><!-- description --></td>
+            </tr>
+          </tbody>
+        </table>
       </td>
     </tr>
+
+    <!-- Regression -->
     <tr>
       <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Regression: "Affected By" Bug and Rationale</b>
+        <b>Regression: &quot;Affected By&quot; Bug and Rationale</b>
       </td>
-      <td style="border:1pt solid windowtext;padding:4px;">
-        N/A — new security fix, not a regression of existing code.
-      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">No</td>
     </tr>
-    <tr>
-      <td colspan="2" style="border:1pt solid windowtext;background:#ddd;padding:4px;">
-        <b>Comms</b>
-      </td>
-    </tr>
+
+    <!-- Comms -->
+    <tr><td colspan="2" style="border:1pt solid windowtext;background:rgb(204, 204, 204);padding:4px;">
+      <b><span style="color:black;">Comms</span></b>
+    </td></tr>
     <tr>
       <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
         <b>Release notes (if Rel Note field == Yes)</b>
       </td>
-      <td style="border:1pt solid windowtext;padding:4px;">
-        <!-- Release notes or N/A -->
-      </td>
+      <td style="border:1pt solid windowtext;padding:4px;"><!-- Release notes or leave empty --></td>
     </tr>
-    <tr>
-      <td colspan="2" style="border:1pt solid windowtext;background:#ddd;padding:4px;">
-        <b>ENS-Specific</b>
-      </td>
-    </tr>
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Cloud Critical?</b>
-      </td>
-      <td style="border:1pt solid windowtext;padding:4px;">No</td>
-    </tr>
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Hot Patchable</b>
-      </td>
-      <td style="border:1pt solid windowtext;padding:4px;">No</td>
-    </tr>
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Localization</b>
-      </td>
-      <td style="border:1pt solid windowtext;padding:4px;">No</td>
-    </tr>
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Dependencies</b>
-      </td>
-      <td style="border:1pt solid windowtext;padding:4px;">No</td>
-    </tr>
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Protocol Changes</b>
-      </td>
-      <td style="border:1pt solid windowtext;padding:4px;">No</td>
-    </tr>
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Is Test Guidance filled out in TrackIt</b>
-      </td>
-      <td style="border:1pt solid windowtext;padding:4px;">No</td>
-    </tr>
+
+    <!-- ENS -->
+    <tr><td colspan="2" style="border:1pt solid windowtext;background:rgb(204, 204, 204);padding:4px;">
+      <b><span style="color:black;">ENS-Specific Sec Questions</span></b>
+    </td></tr>
+    <tr><td style="..."><b>Cloud Critical?</b></td><td style="...">No</td></tr>
+    <tr><td style="..."><b>Hot Patchable</b></td><td style="...">No</td></tr>
+    <tr><td style="..."><b>Localization</b></td><td style="...">No</td></tr>
+    <tr><td style="..."><b>Dependencies</b></td><td style="...">No</td></tr>
+    <tr><td style="..."><b>Protocol Changes</b></td><td style="...">No</td></tr>
+    <tr><td style="..."><b>Is Test Guidance filled out in TrackIt</b></td><td style="...">No</td></tr>
   </tbody>
 </table>
 ```
 
-**⚠️ CRITICAL: Never use `<h2>` or `<h3>` tags for section headings in the ReproSteps field. All content must be inside the table rows above. Using plain headings produces a messed-up layout.**
-
-**Content formatting rules:**
-- Use **paragraphs** (`<br>`) and **bullet points** (`<ul><li>`) for all content inside the right `<td>` cells
-- Do **NOT** use nested `<table>` elements inside the template table — they render poorly in ADO
-- For before/after test results, use bullet-point lists:
-  ```html
-  <b>Before fix:</b>
-  <ul>
-    <li>Standard user calls Foo() - Succeeds (VULNERABLE)</li>
-    <li>Admin calls Foo() - Succeeds</li>
-  </ul>
-  <b>After fix:</b>
-  <ul>
-    <li>Standard user calls Foo() - ACCESS_DENIED (BLOCKED)</li>
-    <li>Admin calls Foo() - Succeeds - no regression</li>
-  </ul>
-  ```
-- For component changes, use bullet points: `<li><b>ComponentName</b> - description of change</li>`
+**Multi-MSRC handling (learned from reference bug 62575488 with MSRCs 120495, 128733, 131096, 137811):**
+- In **Attack Scenario**: give each MSRC its own bold sub-heading with vuln type:
+  `<div><b>MSRC-128733 (EoP — Arbitrary File Delete):</b></div>` followed by numbered repro steps
+- In **Fix Description**: label each fix separately:
+  `<div><b>Fix 1 — RedirectionGuard (MSRC-120495, 128733, 131096)</b></div>`
+  `<div><b>Fix 2 — Remove StateRepository (MSRC-137811)</b></div>`
+- In **Validation**: list each MSRC's confirmation:
+  `<div>• MSRC-128733: race no longer deletes marker files</div>`
 
 **Content guidelines per section:**
-- **Attack Scenario**: Describe the vulnerability, affected code paths, privilege boundary crossed, CWE, and severity
-- **Fix Description**: What was changed, containment feature name, files modified
-- **Validation / Regression Risk**: Before/after bullet-point lists showing vulnerable vs fixed behavior, regression risk assessment
+- **Attack Scenario**: Describe vulnerability, affected code paths, numbered repro steps, privilege boundary crossed, CWE, and severity
+- **Fix Description**: What was changed, containment feature names and states, files modified
+- **Validation / Regression Risk**: Regression risk rationale first, then before/after bullet-point lists, then per-MSRC validation results
 - **Variant Analysis**: Whether similar patterns exist in other code paths (or "No additional variants identified")
-- **Changes Outside Component Area**: Bullet list of `Component - description` (or "None")
-- **Regression: "Affected By" Bug**: Usually "N/A — new security fix"
-- **ENS-Specific fields**: Default to "No" unless explicitly known otherwise
+- **Changes Outside Component Area**: 3-column template table (Component Area | Duo/Lead Signoff | Nature of changes)
+- **Regression: "Affected By" Bug**: Usually "No"
+- **ENS-Specific Sec Questions**: Default to "No" unless explicitly known otherwise
 
 ---
 
