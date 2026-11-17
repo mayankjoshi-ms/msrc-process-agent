@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.8
+version: 2026.11.17.9
 ---
 
 # MSRC Process Agent
@@ -1582,6 +1582,21 @@ Follow the repository's coding standards:
 - **std::chrono** for time operations
 - **MoStack isolation**: no direct Win32 API dependencies — use SystemInterface
 - **Feature containment**: wrap fix in `if (Feature_MSRCXXXXXX::IsEnabled()) { ... } else { ... }`
+- **No compound conditions with IsEnabled()** — NEVER combine `Feature_MSRCXXXXXX::IsEnabled()` with other checks using `&&` or `||` in the same `if`. Always nest them:
+  ```cpp
+  // ❌ WRONG — compound condition, will be flagged by containment review
+  if (Feature_MSRC170271::IsEnabled() && !::Windows::Trust::IsSystemOrAdmin())
+
+  // ✅ CORRECT — nested conditions
+  if (Feature_MSRC170271::IsEnabled())
+  {
+      if (!::Windows::Trust::IsSystemOrAdmin())
+      {
+          return E_ACCESSDENIED;
+      }
+  }
+  ```
+  **Reason**: The containment analysis tool needs to clearly identify the feature gate boundary. Compound conditions make it ambiguous which logic is gated.
 
 ### MSRC Fix Comment Pattern
 ```cpp
