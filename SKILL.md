@@ -127,10 +127,10 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 | Platform | ADO Product | Repo | Branch Pattern | Status |
 |---|---|---|---|---|
 | **Main** | OS | uus | `main` | ✅ Supported |
-| **GE** | Windows (Ge) | uus | `release/v15/XXXXb_ge` | ✅ Supported |
+| **GE (GEBR)** | Windows (Ge) | uus | `release/v15/XXXXb_gebr` | ✅ Supported — combined GE+BR branch |
 | **GE-LT** | Windows (Ge) LT | uus | `release/v15/XXXXb_lt` | ✅ Supported |
 | **NI** | Windows 11 22H2 | uus | `release/v14/XXXXb_ni` | ✅ Supported |
-| **BR** | Windows (Br) | uus | `release/v15/XXXXb_br` | ✅ Supported |
+| **BR** | Windows (Br) | uus | ⛔ No separate branch — covered by GEBR | ✅ Bugs linked to GE PR |
 | **FE** | Windows Server 2022 | os.2020 | `official/fe_release_svc_XXXXb` | ✅ Supported (docked) |
 | **VB** | Windows 10 2004 | os.2020 | `official/vb_release_svc_XXXXb` | ✅ Supported (docked) |
 | GE Hotpatch | Windows (Ge) Hotpatch | — | — | ❓ Unknown — ask user |
@@ -1189,12 +1189,23 @@ IcM ID (from chat context or user)
 | PR Branch Pattern | Platform Match (OSG.Product) |
 |---|---|
 | `main` | `OS` (Family: `Windows`) |
-| `*_ge` | `Windows (Ge)` |
+| `*_gebr` | `Windows (Ge)` **+ `Windows (Br)`** (combined branch) |
+| `*_ge` | `Windows (Ge)` (legacy — use `*_gebr` for new releases) |
 | `*_lt` | `Windows (Ge) LT` |
 | `*_ni` | `Windows 11 22H2` |
-| `*_br` | `Windows (Br)` |
+| `*_br` | `Windows (Br)` (legacy — now covered by `*_gebr`) |
 | `*fe_release*` | `Windows Server 2022` |
 | `*vb_release*` | `Windows 10 2004` |
+
+### Combined GEBR Branch Rule
+
+> **⚠️ GE and BR are now combined into a single `gebr` branch (e.g., `release/v15/2701b_gebr`). Do NOT create a separate BR PR.**
+
+- Create ONE PR targeting the `gebr` branch (this is the GE PR)
+- Link **4 bugs** to this PR: GE Main OS + GE SafeOS DU + BR Main OS + BR SafeOS DU
+- The PR title uses `[GE]` (not `[GEBR]`): `[GE] <fix description> (MSRC <ID>)`
+- No separate code port or PR is needed for BR — the GEBR branch covers both platforms
+- If the branch pattern is `*_gebr`, always match BOTH `Windows (Ge)` and `Windows (Br)` bugs
 
 ### Link BOTH Main OS and SafeOS DU Bugs
 
@@ -1202,33 +1213,39 @@ IcM ID (from chat context or user)
 
 ### SafeOS DU Bug Existence by Platform
 
-| Platform | OSG.Product | Has Main OS Bug? | Has SafeOS DU Bug? |
-|---|---|---|---|
-| **Main** | OS | ✅ | ❌ Never |
-| **GE** | Windows (Ge) | ✅ | ✅ |
-| **GE-LT** | Windows (Ge) LT | ✅ | ✅ |
-| **NI** | Windows 11 22H2 | ✅ | ✅ |
-| **BR** | Windows (Br) | ✅ | ✅ |
-| **FE** | Windows Server 2022 | ✅ | ✅ |
-| **VB** | Windows 10 2004 | ✅ | ✅ |
-| Win 10 1809 | Windows 10 1809 | ✅ | ✅ |
-| Win 10 1607 | Windows 10 1607 | ✅ | ✅ |
-| Win 8.1 | Windows 8.1 | ✅ | ❌ Never |
-| Server 2012 | Windows Server 2012 | ✅ | ❌ Never |
-| GE Hotpatch | Windows (Ge) Hotpatch | ✅ | ❌ Never |
-| GE-LT Hotpatch | Windows (Ge) LT Hotpatch | ✅ | ❌ Never |
-| Server 2022 Hotpatch | Windows Server 2022 Hotpatch | ✅ | ❌ Never |
+| Platform | OSG.Product | Has Main OS Bug? | Has SafeOS DU Bug? | Linked to PR |
+|---|---|---|---|---|
+| **Main** | OS | ✅ | ❌ Never | Main PR (1 bug) |
+| **GE** | Windows (Ge) | ✅ | ✅ | GE/GEBR PR |
+| **GE-LT** | Windows (Ge) LT | ✅ | ✅ | GE-LT PR |
+| **NI** | Windows 11 22H2 | ✅ | ✅ | NI PR |
+| **BR** | Windows (Br) | ✅ | ✅ | ⚠️ **GE/GEBR PR** (no separate BR PR) |
+| **FE** | Windows Server 2022 | ✅ | ✅ | FE PR |
+| **VB** | Windows 10 2004 | ✅ | ✅ | VB PR |
+| Win 10 1809 | Windows 10 1809 | ✅ | ✅ | (unsupported — close) |
+| Win 10 1607 | Windows 10 1607 | ✅ | ✅ | (unsupported — close) |
+| Win 8.1 | Windows 8.1 | ✅ | ❌ Never | (unsupported — close) |
+| Server 2012 | Windows Server 2012 | ✅ | ❌ Never | (unsupported — close) |
+| GE Hotpatch | Windows (Ge) Hotpatch | ✅ | ❌ Never | (coldpatch close or fix) |
+| GE-LT Hotpatch | Windows (Ge) LT Hotpatch | ✅ | ❌ Never | (coldpatch close or fix) |
+| Server 2022 Hotpatch | Windows Server 2022 Hotpatch | ✅ | ❌ Never | (coldpatch close or fix) |
 
-**Rule:** SafeOS DU bugs exist for **GE through Win 10 1607** (inclusive). They do NOT exist for Main, Win 8.1, Server 2012, or any Hotpatch platform.
+**Rules:**
+- SafeOS DU bugs exist for **GE through Win 10 1607** (inclusive). They do NOT exist for Main, Win 8.1, Server 2012, or any Hotpatch platform.
+- **GEBR combined branch:** The GE PR (targeting `*_gebr`) gets **4 bugs**: GE Main OS + GE SafeOS DU + BR Main OS + BR SafeOS DU. No separate BR PR.
 
 When linking bugs to a PR:
 1. Find ALL child bugs matching the platform's `OSG.Product`
-2. For platforms GE–Win 10 1607: expect 2 matches (Main OS + SafeOS DU). **Link BOTH.**
-3. For Main, Win 8.1, Server 2012, Hotpatch: expect 1 match (Main OS only). Link it.
-4. If a SafeOS DU bug is expected but not found, flag it to the user — do not silently skip.
+2. For the GE/GEBR PR: match BOTH `Windows (Ge)` AND `Windows (Br)` products → expect **4 bugs** (GE Main + GE SafeOS + BR Main + BR SafeOS). **Link ALL 4.**
+3. For other platforms GE-LT–Win 10 1607: expect 2 matches (Main OS + SafeOS DU). **Link BOTH.**
+4. For Main, Win 8.1, Server 2012, Hotpatch: expect 1 match (Main OS only). Link it.
+5. If a SafeOS DU bug is expected but not found, flag it to the user — do not silently skip.
 
 ```powershell
-# For platforms with SafeOS DU (GE through Win 10 1607):
+# For GEBR PR (4 bugs: GE + BR, each with Main OS + SafeOS DU):
+az repos pr work-item add --id <PR_ID> --work-items <ge_main_bug> <ge_safeos_bug> <br_main_bug> <br_safeos_bug> --org "https://dev.azure.com/microsoft"
+
+# For platforms with SafeOS DU (GE-LT through Win 10 1607):
 az repos pr work-item add --id <PR_ID> --work-items <main_os_bug_id> <safeos_du_bug_id> --org "https://dev.azure.com/microsoft"
 
 # For Main / Win 8.1 / Server 2012 / Hotpatch (no SafeOS DU):
