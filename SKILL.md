@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.6
+version: 2026.11.17.7
 ---
 
 # MSRC Process Agent
@@ -289,10 +289,20 @@ user/<alias>/msrc-<MSRC-ID>-<short-description>
 ```
 
 **Rules:**
-- `<alias>` — your ADO alias (e.g., `mayajoshi`)
+- `<alias>` — your ADO alias, extracted from git config email (see below)
 - `<MSRC-ID>` — numeric MSRC case ID (e.g., `170271`)
 - `<short-description>` — 2-4 lowercase words separated by hyphens describing the fix. Keep it brief but meaningful.
 - All lowercase, no spaces, no special characters except hyphens
+
+**How to get the alias:**
+```powershell
+# Extract alias from git user.email (e.g., "mayajoshi@microsoft.com" → "mayajoshi")
+$alias = (git config user.email) -replace '@.*$', ''
+```
+If `git config user.email` is empty or not set, fall back to:
+```powershell
+$alias = $env:USERNAME
+```
 
 **Examples:**
 ```
