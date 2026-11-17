@@ -1131,7 +1131,7 @@ For multiple MSRCs:
 |---|---|
 | Single MSRC (main) | `[main][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Single MSRC (GE) | `[GE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
-| Single MSRC (GE-LT) | `[GE-LT][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| Single MSRC (LT) | `[LT][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Combined GEBR | `[GE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Separate BR | `[BR][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Docked (FE) | `[FE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
@@ -1139,7 +1139,7 @@ For multiple MSRCs:
 | 3+ MSRCs | `[GE][MSRC 155686,163522,170271] Fix Approve UAF race, WIL token escalation, and UOP auth bypass` |
 
 Rules:
-- Platform name in first `[]` — use the short platform name (main, GE, GE-LT, NI, BR, FE, VB)
+- Platform name in first `[]` — use the short platform name (main, GE, LT, NI, BR, FE, VB)
 - MSRC ID(s) in second `[]` — format: `MSRC <ID>` or `MSRC <ID1>,<ID2>` for multiple
 - Fix description follows — concise, one line
 - **For multiple MSRCs:** each MSRC gets a short `<function/component> <vulnerability>` mention, joined with commas/and. Never use generic text like "Fix multiple security vulnerabilities".
@@ -1298,7 +1298,7 @@ git ls-remote --heads origin "release/v15/XXXXb_ge*" "release/v15/XXXXb_br*"
 |---|---|---|---|---|
 | **Main** | OS | ✅ | ❌ Never | Main PR (1 bug) |
 | **GE** | Windows (Ge) | ✅ | ✅ | GE or GEBR PR (check remote) |
-| **GE-LT** | Windows (Ge) LT | ✅ | ✅ | GE-LT PR |
+| **GE-LT** | Windows (Ge) LT | ✅ | ✅ | LT PR |
 | **NI** | Windows 11 22H2 | ✅ | ✅ | NI PR |
 | **BR** | Windows (Br) | ✅ | ✅ | BR PR or GEBR PR (check remote) |
 | **FE** | Windows Server 2022 | ✅ | ✅ | FE PR |
