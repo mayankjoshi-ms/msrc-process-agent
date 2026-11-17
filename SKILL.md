@@ -301,156 +301,136 @@ user/<alias>/msrc-<MSRC-ID>-<short-description>
 ### Security Bug Case Approval Template Sections
 The ReproSteps field MUST use the **"Servicing - Security Bug Case Approval Template"** HTML table format. Do NOT use plain HTML headings (`<h2>`, `<h3>`) — the content must be inside a 2-column HTML table.
 
-**⚠️ CRITICAL FORMATTING RULES (learned from reference bug 62575488):**
-1. **Never** use `<h2>`, `<h3>`, `<p>`, or `<ul>/<li>` tags — ADO renders them inconsistently
-2. Use `<div>` tags for each paragraph/line of content
-3. Use `<br>` inside `<div>` for line breaks between paragraphs
+**⚠️ CRITICAL FORMATTING RULES (learned from reference bug 62575488, confirmed working in bug 64861567 Rev 15):**
+1. **Never** use `<h2>`, `<h3>`, `<ul>/<li>` tags — ADO renders them inconsistently
+2. Use `<div>` tags for each paragraph/line of content inside right `<td>` cells
+3. Use `<br>` inside `<div>` for line breaks between paragraphs: `<div><br></div>`
 4. Use literal `•` character (U+2022) for bullet points, each in its own `<div>`
 5. Use `&nbsp;` around inline code identifiers (e.g., `&nbsp;FunctionName()&nbsp;`)
 6. Use `<b>` for bold text and sub-headings within a section
 7. Use numbered steps (1, 2, 3...) in `<div>` tags for attack scenario repro steps
 8. The ENS section header must be **"ENS-Specific Sec Questions"** (not "ENS-Specific")
-9. Section separator rows (Case Details, Comms, ENS) use `background:rgb(204, 204, 204)` or `background:rgb(221, 221, 221)`
+9. Wrap ALL label text in `<p>` with Aptos font: `<p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">`
 
-**Required table structure:**
+**⚠️ CRITICAL CSS RULES (these exact styles are required — ADO drops rows with wrong borders):**
+
+| Cell type | CSS style |
+|-----------|-----------|
+| **Header row** (template title) | `border:1pt solid windowtext;background:gray;padding:0cm;` |
+| **Version row** | `border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;` |
+| **Section separator** (Case Details) | Same as version row + `background:rgb(221, 221, 221);` |
+| **Section separator** (Comms, ENS) | Same as version row + `background:rgb(204, 204, 204);` |
+| **Label cell** (left `<td>`, internal rows) | `border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;` |
+| **Content cell** (right `<td>`, internal rows) | `border-width:medium 1pt 1pt medium;border-style:none solid solid none;border-color:currentcolor windowtext windowtext currentcolor;padding:0cm;` |
+
+**Required table structure (exact CSS — do NOT simplify to `border:1pt solid windowtext`):**
 
 ```html
 <table width="100%" style="border-collapse:collapse;">
   <thead>
-    <tr><td colspan="2" style="border:1pt solid windowtext;background:gray;padding:4px;">
-      <b><span style="color:black;">Servicing - Security Bug Case Approval Template</span></b>
+    <tr><td colspan=2 style="border:1pt solid windowtext;background:gray;padding:0cm;">
+      <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">
+        <b><span style="color:black;">Servicing - Security Bug Case Approval Template</span></b>
+      </p>
     </td></tr>
-    <tr><td colspan="2" style="border:1pt solid windowtext;padding:4px;">
-      Version 2022.1.04
+    <tr><td colspan=2 style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;">
+      <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">Version 2022.1.04</p>
     </td></tr>
   </thead>
   <tbody>
-    <tr><td colspan="2" style="border:1pt solid windowtext;background:rgb(221, 221, 221);padding:4px;">
-      <b><span style="color:black;">Case Details</span></b>
+    <!-- Case Details separator -->
+    <tr><td colspan=2 style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;background:rgb(221, 221, 221);padding:0cm;">
+      <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">
+        <b><span style="color:black;">Case Details</span></b>
+      </p>
     </td></tr>
 
-    <!-- Attack Scenario -->
+    <!-- Label + Content row pattern -->
     <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;"><b>Attack Scenario</b></td>
-      <td style="border:1pt solid windowtext;padding:4px;">
-        <div>Description of vulnerability...</div>
+      <td style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;"><b>Attack Scenario</b></p>
+      </td>
+      <td style="border-width:medium 1pt 1pt medium;border-style:none solid solid none;border-color:currentcolor windowtext windowtext currentcolor;padding:0cm;">
+        <div>Content using div tags...</div>
         <div><br></div>
-        <div><b>MSRC-XXXXXX (VulnType — Short Title):</b></div>
-        <div><br></div>
-        <div>1. Step one of the attack</div>
-        <div>2. Step two of the attack</div>
-        <div>3. Privilege boundary crossed: Standard user → SYSTEM</div>
-        <div><br></div>
-        <div>CWE-XXX: Category. Severity: Important.</div>
+        <div>• Bullet point using literal • character</div>
       </td>
     </tr>
 
-    <!-- Fix Description -->
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;"><b>Fix Description</b></td>
-      <td style="border:1pt solid windowtext;padding:4px;">
-        <div>What was fixed...</div>
-        <div><br></div>
-        <div><b>Containment:</b></div>
-        <div><br></div>
-        <div>• Fix is behind velocity feature flag: &nbsp;Feature_MSRCXXXXXX&nbsp;</div>
-        <div>• Release branches use &nbsp;EnabledByDefault&nbsp;; main uses &nbsp;AlwaysDisabled&nbsp;</div>
-        <div>• When flag is disabled, old code path preserved — allows safe rollback</div>
-        <div><br></div>
-        <div>File changed: &nbsp;src/path/to/file.cpp&nbsp;</div>
-      </td>
-    </tr>
+    <!-- Fix Description, Validation, Variant Analysis follow same pattern -->
 
-    <!-- Validation -->
+    <!-- Changes Outside Component Area (3-column sub-table per official template) -->
     <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Validation / Regression Risk Level of the Fix &amp; Mitigation</b>
+      <td style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;"><b>Changes Outside Component Area</b></p>
       </td>
-      <td style="border:1pt solid windowtext;padding:4px;">
-        <div>Regression risk is low:</div>
-        <div><br></div>
-        <div>• Reason 1 why regression risk is low</div>
-        <div>• Reason 2 why regression risk is low</div>
-        <div><br></div>
-        <div>Validation performed:</div>
-        <div><br></div>
-        <div><b>Before fix:</b></div>
-        <div><br></div>
-        <div>• Standard user calls Foo() — Succeeds (VULNERABLE)</div>
-        <div>• Admin calls Foo() — Succeeds</div>
-        <div><br></div>
-        <div><b>After fix:</b></div>
-        <div><br></div>
-        <div>• Standard user calls Foo() — ACCESS_DENIED (BLOCKED)</div>
-        <div>• Admin calls Foo() — Succeeds — no regression</div>
-        <div><br></div>
-        <div>• Validated on X, Y, Z VMs</div>
-        <div>• Normal USO functionality works correctly post-fix</div>
-      </td>
-    </tr>
-
-    <!-- Variant Analysis -->
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;"><b>Variant Analysis</b></td>
-      <td style="border:1pt solid windowtext;padding:4px;">
-        <div>• Analysis point 1</div>
-        <div>• Analysis point 2</div>
-      </td>
-    </tr>
-
-    <!-- Changes Outside Component Area (uses 3-column sub-table per official template) -->
-    <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Changes Outside Component Area</b>
-      </td>
-      <td style="border:1pt solid windowtext;padding:4px;">
-        <div>If there are dependencies or impact to other components, please list them here:</div>
-        <table style="border-collapse:collapse;">
-          <tbody>
-            <tr>
-              <td style="border:1pt solid windowtext;padding:4px;"><b>Component Area</b></td>
-              <td style="border:1pt solid windowtext;padding:4px;"><b>Component Duo/Lead Signoff</b></td>
-              <td style="border:1pt solid windowtext;padding:4px;"><b>Nature of changes in this component</b></td>
-            </tr>
-            <tr>
-              <td style="border:1pt solid windowtext;padding:4px;"><!-- component --></td>
-              <td style="border:1pt solid windowtext;padding:4px;"><!-- signoff --></td>
-              <td style="border:1pt solid windowtext;padding:4px;"><!-- description --></td>
-            </tr>
-          </tbody>
-        </table>
+      <td style="border-width:medium 1pt 1pt medium;border-style:none solid solid none;border-color:currentcolor windowtext windowtext currentcolor;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">
+          If there are dependencies or impact to other components, please list them here:
+        </p>
+        <table style="border-collapse:collapse;"><tbody>
+          <tr>
+            <td style="border:1pt solid windowtext;padding:0cm;">
+              <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">Component Area</p>
+            </td>
+            <td style="border-width:1pt 1pt 1pt medium;border-style:solid solid solid none;border-color:windowtext windowtext windowtext currentcolor;padding:0cm;">
+              <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">Component Duo/Lead Signoff</p>
+            </td>
+            <td style="border-width:1pt 1pt 1pt medium;border-style:solid solid solid none;border-color:windowtext windowtext windowtext currentcolor;padding:0cm;">
+              <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">Nature of changes in this component</p>
+            </td>
+          </tr>
+          <!-- Data rows use same border pattern as main table internal rows -->
+        </tbody></table>
       </td>
     </tr>
 
     <!-- Regression -->
     <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Regression: &quot;Affected By&quot; Bug and Rationale</b>
+      <td style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">
+          <b>Regression: &quot;Affected By&quot; Bug and Rationale</b>
+        </p>
       </td>
-      <td style="border:1pt solid windowtext;padding:4px;">No</td>
+      <td style="border-width:medium 1pt 1pt medium;border-style:none solid solid none;border-color:currentcolor windowtext windowtext currentcolor;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">No</p>
+      </td>
     </tr>
 
-    <!-- Comms -->
-    <tr><td colspan="2" style="border:1pt solid windowtext;background:rgb(204, 204, 204);padding:4px;">
-      <b><span style="color:black;">Comms</span></b>
+    <!-- Comms separator -->
+    <tr><td colspan=2 style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;background:rgb(204, 204, 204);padding:0cm;">
+      <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">
+        <b><span style="color:black;">Comms</span></b>
+      </p>
     </td></tr>
+
+    <!-- Release notes -->
     <tr>
-      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
-        <b>Release notes (if Rel Note field == Yes)</b>
+      <td style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">
+          <b>Release notes (if Rel Note field == Yes)</b>
+        </p>
       </td>
-      <td style="border:1pt solid windowtext;padding:4px;"><!-- Release notes or leave empty --></td>
+      <td style="border-width:medium 1pt 1pt medium;border-style:none solid solid none;border-color:currentcolor windowtext windowtext currentcolor;padding:0cm;"></td>
     </tr>
 
-    <!-- ENS -->
-    <tr><td colspan="2" style="border:1pt solid windowtext;background:rgb(204, 204, 204);padding:4px;">
-      <b><span style="color:black;">ENS-Specific Sec Questions</span></b>
+    <!-- ENS separator -->
+    <tr><td colspan=2 style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;background:rgb(204, 204, 204);padding:0cm;">
+      <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">
+        <b><span style="color:black;">ENS-Specific Sec Questions</span></b>
+      </p>
     </td></tr>
-    <tr><td style="..."><b>Cloud Critical?</b></td><td style="...">No</td></tr>
-    <tr><td style="..."><b>Hot Patchable</b></td><td style="...">No</td></tr>
-    <tr><td style="..."><b>Localization</b></td><td style="...">No</td></tr>
-    <tr><td style="..."><b>Dependencies</b></td><td style="...">No</td></tr>
-    <tr><td style="..."><b>Protocol Changes</b></td><td style="...">No</td></tr>
-    <tr><td style="..."><b>Is Test Guidance filled out in TrackIt</b></td><td style="...">No</td></tr>
+
+    <!-- ENS fields (Cloud Critical?, Hot Patchable, Localization, Dependencies, Protocol Changes, Is Test Guidance filled out in TrackIt) -->
+    <tr>
+      <td style="border-width:medium 1pt 1pt;border-style:none solid solid;border-color:currentcolor windowtext windowtext;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;"><b>Cloud Critical?</b></p>
+      </td>
+      <td style="border-width:medium 1pt 1pt medium;border-style:none solid solid none;border-color:currentcolor windowtext windowtext currentcolor;padding:0cm;">
+        <p style="margin:0cm 0cm 8pt;font-size:11pt;font-family:Aptos, sans-serif;">No</p>
+      </td>
+    </tr>
+    <!-- Repeat for each ENS field -->
   </tbody>
 </table>
 ```
@@ -611,6 +591,179 @@ The exact JSON Patch body for resolving as Duplicate (field name is **`Microsoft
 ```
 
 **Expected total time for 22-bug duplicate resolution: ~2 seconds** (vs ~2.5 minutes sequential).
+
+---
+
+## 8b. Fill Servicing Template Workflow
+
+This is the step-by-step procedure for populating the **Servicing - Security Bug Case Approval Template** in a bug's ReproSteps field. It applies whether the user says "fill the bug template", "fill servicing template", "populate repro steps", or any equivalent phrasing.
+
+### Entry Point
+
+User provides a bug ID (or bug URL) and says "fill servicing template" (or equivalent).
+
+### Step 1: Read the Bug
+
+```
+ADO API → GET work item by ID
+Extract:
+  - System.Title → MSRC ID (parse [MSRC XXXXXX] from title)
+  - System.State, OSG.Product, Microsoft.VSTS.Common.Release
+  - Current Microsoft.VSTS.TCM.ReproSteps → check if already populated
+  - All linked work items → find linked PRs (type: "Pull Request")
+```
+
+If ReproSteps already has the template filled, **warn the user** and ask whether to overwrite or skip.
+
+### Step 2: Determine Data Sources
+
+**Decision tree:**
+
+```
+Has linked PR(s)?
+  ├─ YES → Go to Step 3A (PR-driven)
+  └─ NO
+       └─ Ask user: "No PR is linked to this bug. Please either:
+            1. Link a PR first and re-run, or
+            2. Provide the fix details manually (what changed, files, containment feature)"
+          → If user links PR → Go to Step 3A
+          → If user provides details → Go to Step 3B (manual)
+```
+
+### Step 3A: PR-Driven Data Gathering
+
+When a linked PR exists, extract fix information from it:
+
+```
+1. Read PR title, description, and diff (ADO REST API)
+2. From PR description:
+   - "Why" section → Attack Scenario context
+   - "What" section → Fix Description details
+   - "How was the change tested?" → Validation details
+   - IcM link → IcM incident ID
+3. From PR diff:
+   - Files changed → Binary Filename, Changes Outside Component Area
+   - Functions modified → Fix Description specifics
+4. If PR description is empty or missing Why/What/How sections:
+   - Ask user: "The PR description is empty or incomplete.
+     Please add the Why/What/How sections to the PR description,
+     or provide the fix details here."
+   - Wait for user response before continuing.
+```
+
+### Step 3B: Manual Data Gathering (No PR)
+
+When no PR is linked and user chooses to provide details manually:
+
+```
+Ask user for each missing piece:
+1. "What is the vulnerability? (attack scenario, CWE, severity)"
+2. "What was the fix? (code changes, containment feature name)"
+3. "What files/binaries were changed?"
+4. "How was it validated? (before/after behavior)"
+5. "Any variant analysis done?"
+```
+
+### Step 4: Cross-Verify with IcM
+
+Regardless of PR or manual path, **always** try to enrich from IcM:
+
+```
+1. Extract MSRC ID from bug title
+2. Query IcM (icm-mcp) for the incident:
+   - icm-mcp-search_incidents with title containing MSRC ID
+   - Read incident summary → vulnerability type, CWE, severity, researcher info
+3. Cross-verify: PR description attack scenario should align with IcM summary
+4. If IcM data contradicts PR data → flag discrepancy to user
+5. If IcM MCP is unavailable → continue with PR/manual data only, note it
+```
+
+### Step 5: Gather Containment Metadata
+
+```
+1. Query containment MCP for feature details:
+   - containment-copilot-coco-mcp-get_containment_basic_information
+   - Feature name, state, release vehicle
+2. If containment MCP is unavailable:
+   - Check PR description for containment feature mentions
+   - Ask user if not found anywhere
+```
+
+### Step 6: Build the Template HTML
+
+Using the data gathered, build the full HTML table per §7:
+
+| Template Section | Data Source (priority order) |
+|---|---|
+| **Attack Scenario** | 1) IcM incident summary 2) PR "Why" section 3) User-provided |
+| **Fix Description** | 1) PR diff + "What" section 2) Containment metadata 3) User-provided |
+| **Validation / Regression Risk** | 1) PR "How tested" section 2) User-provided 3) Default: "Validated by building and running unit tests" |
+| **Variant Analysis** | 1) PR description 2) User-provided 3) Default: "No additional variants identified" |
+| **Changes Outside Component Area** | 1) PR diff (file/component list) 2) User-provided 3) Default: "None" |
+| **Regression** | Default: "No" (override only if user says otherwise) |
+| **Release notes** | Default: empty (unless Rel Note field == Yes) |
+| **ENS fields** | Default: all "No" (unless user specifies otherwise) |
+
+**For multi-MSRC bugs**: follow the multi-MSRC formatting rules in §7:
+- Separate sub-headings per MSRC in Attack Scenario
+- Labeled fixes in Fix Description
+- Per-MSRC validation results
+
+### Step 7: Dry Run Preview
+
+**§8 Golden Rule applies — no writes without approval.**
+
+```
+Show the user:
+┌─────────────────────────────────────────────┐
+│ 📝 Proposed ReproSteps Update (DRY RUN)     │
+│                                              │
+│ Bug: <bug-id>                                │
+│ Field: Microsoft.VSTS.TCM.ReproSteps         │
+│                                              │
+│ Template sections filled:                    │
+│  ✅ Attack Scenario (from PR + IcM)          │
+│  ✅ Fix Description (from PR diff)           │
+│  ✅ Validation (from PR description)         │
+│  ✅ Variant Analysis (default: none)         │
+│  ✅ Changes Outside Component (from PR diff) │
+│  ✅ Regression (No)                          │
+│  ✅ ENS fields (all No)                      │
+│                                              │
+│ [Show full HTML preview? y/n]                │
+│ [Apply this change? y/n]                     │
+└─────────────────────────────────────────────┘
+```
+
+If user asks to see the full preview, render a readable summary of each section's content (not raw HTML).
+
+### Step 8: Apply
+
+```
+1. User approves → PATCH bug with the HTML via ADO REST API
+2. Confirm: "✅ Bug <id> ReproSteps updated with servicing template"
+3. If PATCH fails → show error, do NOT retry without user consent
+```
+
+### Quick Reference: What Can Be Auto-Filled vs What Needs User Input
+
+| Section | PR Linked | No PR |
+|---|---|---|
+| Attack Scenario | ✅ Auto (PR + IcM) | ⚠️ IcM only, may need user |
+| Fix Description | ✅ Auto (PR diff) | ❌ User must provide |
+| Validation | ✅ Auto (PR desc) | ❌ User must provide |
+| Variant Analysis | ⚠️ Default "none" | ⚠️ Default "none" |
+| Changes Outside | ✅ Auto (PR diff) | ❌ User must provide |
+| Regression | ✅ Default "No" | ✅ Default "No" |
+| ENS fields | ✅ Default "No" | ✅ Default "No" |
+
+### Edge Cases
+
+1. **Multiple PRs linked**: Use the main/first PR; if PRs target different MSRCs, merge data from all and use multi-MSRC formatting.
+2. **PR has empty description**: Ask user to fill the PR description first (preferred) or provide details manually.
+3. **IcM MCP unavailable**: Continue with PR data only; note in dry run that IcM cross-verification was skipped.
+4. **Bug already has template**: Warn user and ask to overwrite or skip — never silently overwrite.
+5. **MSRC ID not in bug title**: Ask user for the MSRC case ID.
 
 ---
 
