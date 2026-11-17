@@ -467,14 +467,14 @@ The release code (e.g., `2701b`) determines which branches to target. **Never gu
    - `2026.10 B` → `2610b`
    - `2027.03 B` → `2703b`
 
-2. **Task group's Iteration Path** — The iteration may contain the release:
-   ```
-   System.IterationPath → e.g., "OS\2701" → release code = 2701
-   ```
-
-3. **IcM ResolveBy date** (fallback) — Calculate from the `MsrcCaseDetails.ResolveBy` date:
+2. **IcM ResolveBy date** — Calculate from the `MsrcCaseDetails.ResolveBy` date:
    ```
    ResolveBy: "2027-01-12" → January 2027 → 1B → release code = 2701
+   ```
+
+3. **Task group's Iteration Path** — The iteration may contain the release:
+   ```
+   System.IterationPath → e.g., "OS\2701" → release code = 2701
    ```
 
 4. **User-provided** — If the user explicitly says "targeting 1B" or "targeting 2701b".
