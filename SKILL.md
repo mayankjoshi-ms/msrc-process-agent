@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.5
+version: 2026.11.17.6
 ---
 
 # MSRC Process Agent
@@ -283,14 +283,31 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 
 ### Topic Branch Naming
 
+**Format:**
 ```
 user/<alias>/msrc-<MSRC-ID>-<short-description>
 ```
 
-Examples:
+**Rules:**
+- `<alias>` — your ADO alias (e.g., `mayajoshi`)
+- `<MSRC-ID>` — numeric MSRC case ID (e.g., `170271`)
+- `<short-description>` — 2-4 lowercase words separated by hyphens describing the fix. Keep it brief but meaningful.
+- All lowercase, no spaces, no special characters except hyphens
+
+**Examples:**
 ```
-user/<alias>/msrc-<MSRC-ID>-<short-description>
-user/<alias>/msrc-<MSRC-ID>-<short-description>
+user/mayajoshi/msrc-170271-authz-check
+user/mayajoshi/msrc-163522-wil-use-after-free
+user/mayajoshi/msrc-120495-junction-info-disclosure
+user/mayajoshi/msrc-131462-null-deref-fix
+```
+
+**Same branch name across all platform repos** — when porting to GE, LT, NI etc., use the **same branch name** in every repo:
+```
+E:\uus       → user/mayajoshi/msrc-170271-authz-check
+E:\uus-ge    → user/mayajoshi/msrc-170271-authz-check
+E:\uus-lt    → user/mayajoshi/msrc-170271-authz-check
+E:\uus-ni    → user/mayajoshi/msrc-170271-authz-check
 ```
 
 ### Reviewer Groups
