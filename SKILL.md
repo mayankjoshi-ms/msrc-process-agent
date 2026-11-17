@@ -709,6 +709,34 @@ Using the data gathered, build the full HTML table per §7:
 - Labeled fixes in Fix Description
 - Per-MSRC validation results
 
+### Field Defaults During Template Fill
+
+When filling the servicing template, the skill sets **only** these fields unless the user explicitly requests otherwise:
+
+| Field | Action | Default |
+|---|---|---|
+| Repro Steps | ✅ Set | Full HTML template |
+| Binary Filename | ✅ Set | From PR diff |
+| LOC Impact | ✅ Set | `No` |
+| Tags | ✅ Append | `ComplianceProtocolClean; KIR_Opt_In` |
+| **Triage** | ⛔ **NEVER change** | Leave as-is unless user explicitly says "set triage" |
+| **State** | ⛔ **NEVER change** | Leave as-is |
+| **Resolved Reason** | ⛔ **NEVER change** | Leave as-is |
+
+### Batch Template Fill (Multiple Bugs)
+
+When filling templates for multiple bugs (e.g., all active bugs in a task group):
+
+```
+1. Batch-fetch ALL bug IDs in a single call (§8a batch fetch)
+2. Group bugs by linked PR — bugs sharing a PR get the same template content
+3. Read each unique PR's description + diff ONCE (not per-bug)
+4. Build template HTML per unique MSRC+platform combination
+5. Parallel-write all bugs via runspace pool (§8a parallel writes)
+```
+
+This avoids reading the same PR N times for N bugs linked to it.
+
 ### Step 7: Dry Run Preview
 
 **§8 Golden Rule applies — no writes without approval.**
@@ -1007,7 +1035,24 @@ bzf    # fast build (no packaging, no test metadata)
 | `bzf` | Fast build (skip packaging/test metadata) |
 | `bczf` | Clean + fast build |
 
-**Default config**: `-amd64chk` (x64 debug) for testing.
+**Default config**: `-amd64chk` (x64 debug) for testing. Use `-amd64fre` (x64 release) for VM deployment binaries.
+
+### Build Dependency Order
+
+Some projects have implicit build dependencies that must be satisfied first:
+
+| Project | Required Dependency | When |
+|---|---|---|
+| `CoreWorkerWinrtApi` | `casablanca2.8.0.vcxproj` | Release config (`-amd64fre`) — the casablanca REST SDK lib is not pre-built for Release |
+
+If a build fails with `LNK1181: cannot open input file '<lib>.lib'`, check whether the missing lib has a `.vcxproj` in the repo and build it first:
+```powershell
+# Example: build casablanca before the main project
+. <repo-root>\build\dazzle.ps1 -amd64fre
+cd <repo-root>\src\orchestrator
+bz src\orchestrator\common\casablanca2.8.0\casablanca2.8.0.vcxproj
+bz   # now build the main project
+```
 
 **Each repo has its own dazzle.ps1:**
 - `E:\uus\build\dazzle.ps1` (main)
@@ -1701,6 +1746,28 @@ Do NOT ask "what bug should I link?" if the IcM/MSRC context is available. Find 
 ---
 
 ## 21. VM Deployment & Feature Enablement Tools
+
+### VM Version Preflight Check
+
+**Before deploying ANY binary to a VM**, verify that the built binary's branch matches the VM's OS version. Deploying a binary from the wrong branch causes interface mismatches and silent failures.
+
+```powershell
+# ON THE VM: Get the UUS version currently installed
+$uusVer = (Get-Item "C:\Program Files\Windows Update Stack\*\MoUsoCoreWorker.exe").VersionInfo.FileVersion
+Write-Host "VM UUS version: $uusVer"
+
+# Compare against your build output version
+# Main (v1500.x) ≠ GE (v1511.x) ≠ LT (v1451.x) ≠ NI (v1401.x)
+```
+
+| VM Type | Expected UUS Major Version | Build From Branch |
+|---|---|---|
+| AB (Canary/Dev) | v1511.x or v1500.x | GE (`*_gebr`/`*_ge`) or main |
+| GE release | v1511.x | GE branch |
+| LT release | v1451.x | LT branch |
+| NI release | v1401.x | NI branch |
+
+**If the versions don't match** → build from the correct branch first. Do NOT proceed with sfpcopy.
 
 ### Binary Replacement: sfpcopy
 
