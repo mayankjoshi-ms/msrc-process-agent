@@ -921,10 +921,12 @@ Overall: ❌ BR is missing file2.cpp port — BLOCK until resolved
 - This table goes in the session status report (§17) and is referenced in PR descriptions
 
 ### Phase 5: Validation
-1. Deploy to test VM (delegate to `uso-vm-testing` if available, else ask user)
-2. Run full repro scenario against fixed binary
-3. Verify no crash/vulnerability — not just code path existence
-4. Report results
+1. Deploy fixed binary to test VM using **sfpcopy** (see §21)
+2. Enable the containment feature key using **StagingTool** (see §21)
+3. **Reboot the VM** (required after StagingTool enables the key)
+4. Run full repro scenario against fixed binary
+5. Verify no crash/vulnerability — not just code path existence
+6. Report results
 
 ### Phase 6: Commit & Push
 1. Commit with format: `[MSRC XXXXXX] : <Bug title>`
@@ -1372,3 +1374,65 @@ The skill must **proactively** read the IcM ID from:
 4. Commit messages in the PR
 
 Do NOT ask "what bug should I link?" if the IcM/MSRC context is available. Find it automatically.
+
+---
+
+## 21. VM Deployment & Feature Enablement Tools
+
+### Binary Replacement: sfpcopy
+
+Use **sfpcopy** to replace protected system binaries on the test VM. It handles SFC/WFP bypass automatically.
+
+**Tool locations (checked in order):**
+1. `C:\Users\mayajoshi\OneDrive - Microsoft\Desktop\Tools\sfpcopy.exe` (local)
+2. `\\ntqfedev\public\mayajoshi\Tools\sfpcopy.exe` (network share — **requires VPN**)
+
+```powershell
+# Check which path is available
+$sfpcopy = "C:\Users\mayajoshi\OneDrive - Microsoft\Desktop\Tools\sfpcopy.exe"
+if (-not (Test-Path $sfpcopy)) {
+    $sfpcopy = "\\ntqfedev\public\mayajoshi\Tools\sfpcopy.exe"
+    Write-Warning "Using network share — VPN must be connected"
+}
+
+# Replace a binary on the VM (run ON the VM as admin)
+& $sfpcopy "<path\to\fixed\binary.dll>" "<target\system\path\binary.dll>"
+# Example:
+& $sfpcopy "C:\temp\usosvcimpl.dll" "C:\Windows\System32\usosvcimpl.dll"
+```
+
+### Feature Key Enablement: StagingTool
+
+Use **StagingTool** to enable the containment feature key on the test VM so the fix code path is active.
+
+**Tool locations (checked in order):**
+1. `C:\Users\mayajoshi\OneDrive - Microsoft\Desktop\Tools\StagingTool.exe` (local)
+2. `\\ntqfedev\public\mayajoshi\Tools\StagingTool.exe` (network share — **requires VPN**)
+
+```powershell
+# Check which path is available
+$stagingTool = "C:\Users\mayajoshi\OneDrive - Microsoft\Desktop\Tools\StagingTool.exe"
+if (-not (Test-Path $stagingTool)) {
+    $stagingTool = "\\ntqfedev\public\mayajoshi\Tools\StagingTool.exe"
+    Write-Warning "Using network share — VPN must be connected"
+}
+
+# Enable a feature key on the VM (run ON the VM as admin)
+& $stagingTool /enable <FeatureId>
+# Example:
+& $stagingTool /enable 64500171   # Feature_MSRC170271
+```
+
+**⚠️ REBOOT REQUIRED:** After enabling a feature key with StagingTool, the VM **must be rebooted** for the change to take effect. Do NOT run validation until after reboot.
+
+### Full Validation Deployment Sequence
+
+```
+1. Copy fixed binary to VM (e.g., via shared folder or \\ntqfedev share)
+2. sfpcopy — replace the system binary
+3. StagingTool /enable <FeatureId> — enable the containment key
+4. Reboot the VM
+5. Verify the new binary version: (Get-Item <path>).VersionInfo.FileVersion
+6. Run repro scenario — confirm fix blocks the attack
+7. Run regression scenario — confirm normal operation still works
+```
