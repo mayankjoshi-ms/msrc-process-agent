@@ -299,15 +299,147 @@ user/<alias>/msrc-<MSRC-ID>-<short-description>
 | Product Family | `OSG.ProductFamily` | `Windows` (Main) or `Windows Servicing` (downlevel) |
 
 ### Security Bug Case Approval Template Sections
-The ReproSteps field contains an HTML template with these sections:
-- Attack Scenario
-- Fix Description
-- Validation/Regression Risk
-- Variant Analysis
-- Changes Outside Component Area (component table)
-- Regression: "Affected By" Bug and Rationale
-- Comms: Release notes
-- ENS-Specific: Cloud Critical (No), Hot Patchable (No), Localization (No), Dependencies (No), Protocol Changes
+The ReproSteps field MUST use the **"Servicing - Security Bug Case Approval Template"** HTML table format. Do NOT use plain HTML headings (`<h2>`, `<h3>`) — the content must be inside a 2-column HTML table.
+
+**Required table structure:**
+
+```html
+<table width="100%" style="border-collapse:collapse;">
+  <thead>
+    <tr>
+      <td colspan="2" style="border:1pt solid windowtext;background:gray;padding:4px;">
+        <b>Servicing - Security Bug Case Approval Template</b>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="border:1pt solid windowtext;padding:4px;">
+        Version 2022.1.04
+      </td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td colspan="2" style="border:1pt solid windowtext;background:#ddd;padding:4px;">
+        <b>Case Details</b>
+      </td>
+    </tr>
+    <!-- Each section is a row: label in left td, content in right td -->
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Attack Scenario</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">
+        <!-- Attack scenario content here -->
+      </td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Fix Description</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">
+        <!-- Fix description content here -->
+      </td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Validation / Regression Risk Level of the Fix &amp; Mitigation</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">
+        <!-- Validation content here -->
+      </td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Variant Analysis</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">
+        <!-- Variant analysis content here -->
+      </td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Changes Outside Component Area</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">
+        <!-- Component table: Component | Binary/Library | Description | Owner -->
+      </td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Regression: "Affected By" Bug and Rationale</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">
+        N/A — new security fix, not a regression of existing code.
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="border:1pt solid windowtext;background:#ddd;padding:4px;">
+        <b>Comms</b>
+      </td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Release notes (if Rel Note field == Yes)</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">
+        <!-- Release notes or N/A -->
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="border:1pt solid windowtext;background:#ddd;padding:4px;">
+        <b>ENS-Specific</b>
+      </td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Cloud Critical?</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">No</td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Hot Patchable</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">No</td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Localization</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">No</td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Dependencies</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">No</td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Protocol Changes</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">No</td>
+    </tr>
+    <tr>
+      <td style="border:1pt solid windowtext;padding:4px;vertical-align:top;">
+        <b>Is Test Guidance filled out in TrackIt</b>
+      </td>
+      <td style="border:1pt solid windowtext;padding:4px;">No</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+**⚠️ CRITICAL: Never use `<h2>` or `<h3>` tags for section headings in the ReproSteps field. All content must be inside the table rows above. Using plain headings produces a messed-up layout.**
+
+**Content guidelines per section:**
+- **Attack Scenario**: Describe the vulnerability, affected code paths, privilege boundary crossed, CWE, and severity
+- **Fix Description**: What was changed, containment feature name, files modified
+- **Validation / Regression Risk**: Before/after tables showing vulnerable vs fixed behavior, regression risk assessment
+- **Variant Analysis**: Whether similar patterns exist in other code paths (or "No additional variants identified")
+- **Changes Outside Component Area**: Table of `Component | Binary/Library | Description | Owner` (or "None")
+- **Regression: "Affected By" Bug**: Usually "N/A — new security fix"
+- **ENS-Specific fields**: Default to "No" unless explicitly known otherwise
 
 ---
 
