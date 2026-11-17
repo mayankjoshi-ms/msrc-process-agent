@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.7
+version: 2026.11.17.8
 ---
 
 # MSRC Process Agent
@@ -212,6 +212,8 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 - All MSRC features in ONE shared file.
 - Include header: `"FeatureStaging-UndockedUpdateStack-MSRC.h"`
 
+> **`{{alias}}`** in templates below = the user's ADO alias, resolved from `git config user.email` (strip `@microsoft.com`). See §6 for the extraction command. The email in containment files MUST be `<alias>@microsoft.com`.
+
 **Main branch** entry:
 ```xml
 <feature>
@@ -226,7 +228,7 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
     <branchToken>feature/.*</branchToken>
     <branchToken>pull/.*</branchToken>
   </enabledByDefaultBranchTokens>
-  <email>mayajoshi@microsoft.com</email>
+  <email>{{alias}}@microsoft.com</email>
   <changeTime>OnReboot</changeTime>
 </feature>
 ```
@@ -242,7 +244,7 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
   <description>MSRC XXXXXX fix</description>
   <stage>EnabledByDefault</stage>
   <!-- NO enabledByDefaultBranchTokens for downlevel -->
-  <email>mayajoshi@microsoft.com</email>
+  <email>{{alias}}@microsoft.com</email>
   <changeTime>OnReboot</changeTime>
 </feature>
 ```
@@ -260,7 +262,7 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 
 ```json
 {
-  "owner": "mayajoshi@microsoft.com",
+  "owner": "{{alias}}@microsoft.com",
   "team": "USO-Update Session Orchestrator",
   "MSRCCaseId": "XXXXXX",
   "className": "Feature_MSRCXXXXXX",
