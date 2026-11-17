@@ -452,6 +452,56 @@ The exact JSON Patch body for resolving as Duplicate (field name is **`Microsoft
 
 ## 9. Release Targeting
 
+### Determining the Target Release Code (XXXX)
+
+The release code (e.g., `2701b`) determines which branches to target. **Never guess or assume the release code — always derive it from authoritative sources.**
+
+**Priority order for determining the release code:**
+
+1. **Bug's Release field** (most reliable) — Query any child bug from the task group:
+   ```
+   Microsoft.VSTS.Common.Release → e.g., "2027.01 B" → release code = 2701
+   ```
+   Format: `YYYY.MM B` → extract year (last 2 digits) + month (2 digits) → `YYMMb`
+   - `2027.01 B` → `2701b`
+   - `2026.10 B` → `2610b`
+   - `2027.03 B` → `2703b`
+
+2. **Task group's Iteration Path** — The iteration may contain the release:
+   ```
+   System.IterationPath → e.g., "OS\2701" → release code = 2701
+   ```
+
+3. **IcM ResolveBy date** (fallback) — Calculate from the `MsrcCaseDetails.ResolveBy` date:
+   ```
+   ResolveBy: "2027-01-12" → January 2027 → 1B → release code = 2701
+   ```
+
+4. **User-provided** — If the user explicitly says "targeting 1B" or "targeting 2701b".
+
+**Implementation:**
+```powershell
+# After fetching task group children (§20), read the Release field from any child bug:
+$releaseField = $bugs.value[0].fields.'Microsoft.VSTS.Common.Release'
+# e.g., "2027.01 B"
+
+# Parse to release code:
+if ($releaseField -match '(\d{4})\.(\d{2})\s*B') {
+    $year = $Matches[1].Substring(2)  # "27"
+    $month = $Matches[2]              # "01"
+    $releaseCode = "${year}${month}b"  # "2701b"
+}
+```
+
+**Once the release code is determined**, use it for ALL branch lookups:
+- `release/v15/${releaseCode}_ge*` / `release/v15/${releaseCode}_br*` (GEBR detection)
+- `release/v15/${releaseCode}_lt` (GE-LT)
+- `release/v14/${releaseCode}_ni` (NI)
+- `official/fe_release_svc_${releaseCode}` (FE, docked)
+- `official/vb_release_svc_${releaseCode}` (VB, docked)
+
+**⚠️ If the release code from the bug differs from what the IcM or user says, flag a mismatch and ask the user to confirm.**
+
 ### IcM Assessment Validation
 
 Before targeting a release, check the IcM assessment status:
@@ -1179,6 +1229,10 @@ IcM ID (from chat context or user)
       Regex: /workitems\/edit\/(\d+)/  or  "Link to ADO Task Group.*?(\d+)"
   → Fetch task group from ADO REST API
   → Get child bugs via relations (System.LinkTypes.Hierarchy-Forward)
+  → Batch-fetch all child bugs (§8a)
+  → **Derive release code from bug Release field** (see §9 — "Determining the Target Release Code")
+      e.g., "2027.01 B" → releaseCode = "2701b"
+  → Use releaseCode for ALL branch lookups (not user-assumed or IcM-assumed)
   → For each child bug, fetch OSG.Product field
   → Match platform to current PR's target branch
   → Link the matching bug to the PR
