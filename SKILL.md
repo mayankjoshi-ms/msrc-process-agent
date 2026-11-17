@@ -432,12 +432,30 @@ The ReproSteps field MUST use the **"Servicing - Security Bug Case Approval Temp
 
 **⚠️ CRITICAL: Never use `<h2>` or `<h3>` tags for section headings in the ReproSteps field. All content must be inside the table rows above. Using plain headings produces a messed-up layout.**
 
+**Content formatting rules:**
+- Use **paragraphs** (`<br>`) and **bullet points** (`<ul><li>`) for all content inside the right `<td>` cells
+- Do **NOT** use nested `<table>` elements inside the template table — they render poorly in ADO
+- For before/after test results, use bullet-point lists:
+  ```html
+  <b>Before fix:</b>
+  <ul>
+    <li>Standard user calls Foo() - Succeeds (VULNERABLE)</li>
+    <li>Admin calls Foo() - Succeeds</li>
+  </ul>
+  <b>After fix:</b>
+  <ul>
+    <li>Standard user calls Foo() - ACCESS_DENIED (BLOCKED)</li>
+    <li>Admin calls Foo() - Succeeds - no regression</li>
+  </ul>
+  ```
+- For component changes, use bullet points: `<li><b>ComponentName</b> - description of change</li>`
+
 **Content guidelines per section:**
 - **Attack Scenario**: Describe the vulnerability, affected code paths, privilege boundary crossed, CWE, and severity
 - **Fix Description**: What was changed, containment feature name, files modified
-- **Validation / Regression Risk**: Before/after tables showing vulnerable vs fixed behavior, regression risk assessment
+- **Validation / Regression Risk**: Before/after bullet-point lists showing vulnerable vs fixed behavior, regression risk assessment
 - **Variant Analysis**: Whether similar patterns exist in other code paths (or "No additional variants identified")
-- **Changes Outside Component Area**: Table of `Component | Binary/Library | Description | Owner` (or "None")
+- **Changes Outside Component Area**: Bullet list of `Component - description` (or "None")
 - **Regression: "Affected By" Bug**: Usually "N/A — new security fix"
 - **ENS-Specific fields**: Default to "No" unless explicitly known otherwise
 
@@ -1305,24 +1323,20 @@ Rules:
 <Describe how the fix was validated.>
 
 **Before fix:**
-| MSRC / Scenario | Result |
-|---|---|
-| <scenario> | <vulnerable result> |
+- <scenario> - <vulnerable result>
 
 **After fix:**
-| MSRC / Scenario | Result |
-|---|---|
-| <scenario> | <mitigated result> |
+- <scenario> - <mitigated result>
 
 <Mention unit tests, regression analysis, VM validation, etc.>
 ```
 
 ### Description Rules
 - **Markdown only** — no raw HTML (`<h2>`, `<table>`, `<ul>`, `<b>`, etc.). ADO renders Markdown natively.
-- **4000-character hard limit** — ADO rejects PR descriptions over 4000 characters. Write concisely. If approaching the limit, trim the "How was the change tested?" section first (keep the before/after table, cut prose).
+- **4000-character hard limit** — ADO rejects PR descriptions over 4000 characters. Write concisely. If approaching the limit, trim the "How was the change tested?" section first (keep the before/after lists, cut prose).
 - Section headings must be exactly: `## Why is this change being made?`, `## What is being changed?`, `## How was the change tested?`
 - Do NOT invent custom sections like "Attack Scenario", "Fix Description", "Variant Analysis", "References", etc.
-- Before/after tables are required when repro was performed.
+- Before/after bullet-point lists are required when repro was performed.
 - Files changed list is required in the "What" section.
 - Containment feature key and state must be mentioned if applicable.
 - MSRC ID and IcM reference go in the "Why" section, not in a separate "References" section.
