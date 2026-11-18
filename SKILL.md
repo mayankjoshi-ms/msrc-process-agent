@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.18.1
+version: 2026.11.18.2
 ---
 
 # MSRC Process Agent
@@ -1603,13 +1603,17 @@ $statuses.value | Select-Object context, state, description | Format-Table
 5. After pushing a fix, re-check build status
 
 **Monitoring cadence:**
-- Check build status **immediately after PR creation** (may still be `pending`)
-- If `pending`, inform user: "Build is running, will check again when needed"
-- **Always check build status before**:
-  - Reporting a PR as "ready for review"
-  - Creating the next platform's PR (catch failures early)
-  - Filling bug templates (build pass is part of the template)
-  - Closing/resolving bugs
+- Check build status **immediately after PR creation** (will likely be `pending`)
+- If `pending`, inform user: "PR #XXXX created ✅ — build is running (takes 4-5 hours)"
+- **Do NOT block on build** — builds take 4-5 hours. Continue creating other platform PRs, filling bug templates, and doing other work in parallel.
+- When reporting PR status, always include current build state:
+  ```
+  ✅ PR #12345 created — build: ⏳ pending
+  ✅ PR #12346 created — build: ✅ succeeded
+  ✅ PR #12347 created — build: ❌ failed (see <url>)
+  ```
+- **Must check build status before closing/resolving bugs** — a bug cannot be closed if its PR build is failing.
+- Periodically check all open PR builds when user asks for a status update.
 
 ### Phase 8: Bug Updates (only when asked)
 1. Set triage to "Consider by Triad Shiproom" (if asked, with approval)
