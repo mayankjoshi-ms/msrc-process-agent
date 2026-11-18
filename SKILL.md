@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.17.9
+version: 2026.11.18.1
 ---
 
 # MSRC Process Agent
@@ -1565,6 +1565,52 @@ az repos pr work-item add --id <PR_ID> --work-items <BUG_ID> --org "https://dev.
 - Confirm bug is linked (`az repos pr work-item list --id <PR_ID>`)
 
 If any verification fails, fix it immediately before reporting PR as created.
+
+### Phase 7a: PR Build Monitoring
+
+After creating or updating a PR, **check the CI/CD build status** before moving on. PRs with failing builds cannot be merged.
+
+**How to check build status:**
+```powershell
+# Get PR build status via Azure DevOps REST API
+$token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv
+$statuses = Invoke-RestMethod -Uri "https://dev.azure.com/microsoft/OS/_apis/git/repositories/<repo>/pullrequests/<PR_ID>/statuses?api-version=7.1" `
+  -Headers @{ Authorization = "******" }
+
+# Check the latest iteration's build status
+$statuses.value | Select-Object context, state, description | Format-Table
+```
+
+**Status values:**
+| State | Meaning | Action |
+|---|---|---|
+| `succeeded` | ✅ Build passed | Proceed — PR is ready for review |
+| `pending` | ⏳ Build in progress | Wait and re-check after 10-15 minutes |
+| `failed` | ❌ Build failed | Investigate — see below |
+| `notSet` | No build triggered | Check if PR policies are configured |
+| `notApplicable` | Build skipped | Check PR target branch policies |
+
+**When build fails:**
+1. Get the build log URL from the status `targetUrl` field
+2. Report the failure to the user with the log link:
+   ```
+   ❌ PR #12345 build FAILED
+   Build: <build_url>
+   Error: <brief summary if parseable>
+   ```
+3. If the error is in files this MSRC changed → investigate and suggest a fix
+4. If the error is a pre-existing/infrastructure issue → flag to user, do not attempt to fix
+5. After pushing a fix, re-check build status
+
+**Monitoring cadence:**
+- Check build status **immediately after PR creation** (may still be `pending`)
+- If `pending`, inform user: "Build is running, will check again when needed"
+- **Always check build status before**:
+  - Reporting a PR as "ready for review"
+  - Creating the next platform's PR (catch failures early)
+  - Filling bug templates (build pass is part of the template)
+  - Closing/resolving bugs
+
 ### Phase 8: Bug Updates (only when asked)
 1. Set triage to "Consider by Triad Shiproom" (if asked, with approval)
 2. After shiproom + PR merge → resolve as Fixed (if asked, with approval)
