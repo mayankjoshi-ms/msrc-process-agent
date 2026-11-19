@@ -229,6 +229,15 @@ Examples:
 - `user/mayajoshi/msrc-155686-2610b_br`
 - `user/mayajoshi/msrc-155686-fe-2701b` (docked — slightly different pattern)
 
+### Mandatory Branch Preflight
+
+Before making code or containment changes for a new MSRC, create a **dedicated topic branch in each participating repo from the latest fetched target branch**. Never work directly on the target branch or reuse another MSRC's topic branch.
+
+1. Confirm the repository, intended target remote/branch, and clean worktree. Do not discard existing changes or switch a checkout being used by another session; use a separate worktree when needed.
+2. Fetch the target remote immediately before branch creation. Stop if the fetch fails or the intended target ref is missing; a cached remote-tracking ref or local target branch is not proof of freshness.
+3. Create the topic branch from `<target-remote>/<target-branch>`. Before editing, verify that `HEAD` equals the freshly fetched target commit and record that base SHA and the expected topic branch.
+4. When resuming an existing MSRC branch, verify its identity, fetch again, and check its divergence from the remote topic and target branches. Do not reset, overwrite, or force-push existing work to make it appear current.
+
 ---
 
 ## Quick Reference: Full MSRC Workflow per Platform
@@ -240,7 +249,10 @@ Examples:
 ```
 1. BRANCH SETUP
    - cd <repo-folder>
-   - git fetch origin && git checkout -b user/<alias>/msrc-<ID>-<branch> origin/<target-branch>
+   - Follow Mandatory Branch Preflight above; confirm target remote/branch and clean worktree
+   - git fetch <target-remote> (stop if this fails)
+   - git checkout -b user/<alias>/msrc-<ID>-<branch> <target-remote>/<target-branch>
+   - Verify HEAD equals the freshly fetched target commit; record base SHA and topic branch
    → 📌 Checkpoint: "Branch created for <platform>"
 
 2. APPLY FIX + CONTAINMENT
@@ -540,3 +552,21 @@ Get-ChildItem "C:\ProgramData\Microsoft\Windows\WER\ReportQueue" -Recurse -Filte
 Select-String -Path "C:\temp\cdb_log.txt" -Pattern "Access violation|UNEXPECTED HIT|Breakpoint 0 hit"
 # Do NOT match "dead0000" — it appears in the breakpoint SETUP echo, not just actual hits
 ```
+
+#### 15. Scope permission fixes to the affected resource and its lifecycle
+
+Establish the intended security boundary before changing permissions. Identify all consumers of a shared security descriptor and prefer the narrowest resource subtree that fully addresses the issue; do not assume a root-directory policy change is safe.
+
+Preserve legitimate access and unrelated directory policies. Cover existing files, explicit/protected child ACLs, backups, sidecars, and recreation/recovery paths. Validate the reported access denial and legitimate operations after migration and recreation. Source inspection identifies potential regression scope, not confirmed consumer compatibility.
+
+#### 16. Track case and engineering statuses independently
+
+Record incident lifecycle, security assessment, duplicate relationship, code/PR state, CI result, and validation evidence separately, with their sources and observation times.
+
+An active incident does not prove a fix is uncommitted; a mitigated incident does not prove the fix shipped or passed validation. A duplicate relationship does not automatically establish identical severity or impact. Report unknown or conflicting fields explicitly instead of inferring one status from another.
+
+#### 17. Resolve shared containment conflicts semantically
+
+Preserve independent feature entries and intended changes from both branches. Review edits or deletions of the same feature explicitly; do not blindly take an entire side or union all entries.
+
+After resolution, check for conflict markers, duplicate feature identities, correct target-branch metadata, and XML/schema validity. Review the resolved diff before committing. A successful merge commit or push proves neither schema validation nor a passing build; report those outcomes separately and associate CI results with the latest source commit.

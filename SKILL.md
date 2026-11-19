@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.19.4
+version: 2026.11.19.5
 ---
 
 # MSRC Process Agent
@@ -38,7 +38,9 @@ This skill is **self-sufficient**. It does not depend on any preloaded skill. It
 
 ### When to check
 
-Run a version preflight **before any bulk write operation** — filling multiple bug templates, closing multiple bugs, creating multiple PRs, or any batch that modifies ≥ 2 ADO work items.
+Run a version preflight **before ANY write operation** — closing/resolving bugs, filling bug templates, creating PRs, setting triage, or any action that modifies ADO work items, git branches, or containment files. This includes single-bug writes, not just bulk operations.
+
+> **⚠️ MSRC-181704 attempted direct Active→Closed (which ADO rejects) because the session was running an older skill version that didn't have the state machine rule. A version check before the write would have caught this.**
 
 ### How to check
 
@@ -333,6 +335,14 @@ user/<alias>/msrc-<MSRC-ID>-<short-description>
 - `<MSRC-ID>` — numeric MSRC case ID (e.g., `170271`)
 - `<short-description>` — 2-4 lowercase words separated by hyphens describing the fix. Keep it brief but meaningful.
 - All lowercase, no spaces, no special characters except hyphens
+- **No extra slashes** — the only `/` separators are `user/` and `<alias>/`. The MSRC ID and description are joined with hyphens, NOT slashes.
+
+```
+❌ WRONG: user/mayajoshi/msrc-181704/main     (extra slash before "main")
+❌ WRONG: user/mayajoshi/msrc-181704/dacl-fix  (extra slash before description)
+✅ RIGHT: user/mayajoshi/msrc-181704-main
+✅ RIGHT: user/mayajoshi/msrc-181704-dacl-fix
+```
 
 **How to get the alias:**
 ```powershell
