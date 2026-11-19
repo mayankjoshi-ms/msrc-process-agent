@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.19.2
+version: 2026.11.19.3
 ---
 
 # MSRC Process Agent
@@ -567,24 +567,36 @@ The ReproSteps field MUST use the **"Servicing - Security Bug Case Approval Temp
 ## 8. Bug Modification Policy
 
 ### Golden Rule
-**ALL writes to ANY bug field require explicit user approval with a dry run preview.**
+**ALL writes to ANY bug field require explicit user approval via the `ask_user` tool with a dry run preview.**
+
+> **⚠️ A user's chat message requesting a change (e.g., "close those bugs") is the REQUEST, NOT the approval. You MUST still show a dry run and collect approval via `ask_user` before executing. MSRC-181704 violated this by treating "hotpatch bugs too, close them" as implicit approval and going straight to ADO API calls.**
+
+> **⚠️ If the user declines or cancels the `ask_user` form and then asks again (even with a broader or narrower scope), you MUST present a NEW `ask_user` approval form for the updated scope. Never carry forward a cancelled approval.**
 
 ### Workflow for ANY Bug Write
 ```
-1. User explicitly asks for a bug field change
-2. Skill shows dry run:
-   ┌─────────────────────────────────────────────┐
-   │ 📝 Proposed Bug Changes (DRY RUN)           │
-   │                                              │
-   │ Bug: <bug-id>                                │
-   │ Field: Triage                                │
-   │ Current: "New"                               │
-   │ Proposed: "Consider by Triad Shiproom"       │
-   │                                              │
-   │ Apply this change? [y/n]                     │
-   └─────────────────────────────────────────────┘
-3. User approves → skill executes the change
-4. User declines → skill does nothing
+1. User explicitly asks for a bug field change (this is the REQUEST)
+2. Skill shows dry run table with all proposed changes
+3. Skill calls `ask_user` tool with approval form (this is the APPROVAL gate)
+   - The `ask_user` form MUST list every bug ID and the exact field changes
+   - Include a "Make no changes" option
+4. User approves via `ask_user` → skill executes the change
+5. User declines/cancels `ask_user` → skill does NOTHING
+6. User asks again (same or different scope) → go back to step 2 (new dry run + new ask_user)
+```
+
+**❌ WRONG (what MSRC-181704 did):**
+```
+User: "close those bugs"
+Skill: *immediately calls ADO API to close bugs*
+```
+
+**✅ CORRECT:**
+```
+User: "close those bugs"
+Skill: "Here's what would change:" → dry run table → ask_user approval form
+User: approves via ask_user
+Skill: executes the changes
 ```
 
 ### Triage Field
