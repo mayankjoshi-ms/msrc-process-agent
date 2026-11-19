@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.19.1
+version: 2026.11.19.2
 ---
 
 # MSRC Process Agent
@@ -1649,12 +1649,26 @@ az repos pr work-item add --id <PR_ID> --work-items <BUG_ID> --org "https://dev.
 - Confirm title matches §19 format
 - Confirm description has all 3 sections and IcM link
 - Confirm bug is linked (`az repos pr work-item list --id <PR_ID>`)
+- **Check build status** (Phase 7a) and report it alongside the PR confirmation
 
 If any verification fails, fix it immediately before reporting PR as created.
 
-### Phase 7a: PR Build Monitoring
+**Every PR confirmation message MUST include build status:**
+```
+✅ PR #12345 created — build: ⏳ pending (takes ~4-5 hours)
+```
+Never report a PR without its build state. This is not optional.
 
-After creating or updating a PR, **check the CI/CD build status** before moving on. PRs with failing builds cannot be merged.
+### Phase 7a: PR Build Monitoring (MANDATORY — not optional)
+
+> **⚠️ This is NOT a "nice to have". Every PR creation MUST trigger an immediate build status check. Every status update the user asks for MUST include build state. MSRC-156290 failed because build status was never checked.**
+
+**Mandatory actions:**
+
+1. **Immediately after creating each PR** — query build status and include it in the PR confirmation message
+2. **When user asks "what's the status"** — re-check ALL open PR builds and report current state
+3. **Before closing/resolving any bug** — verify its linked PR build has passed. If build is still pending or failed, do NOT close the bug.
+4. **When summarizing work done** — always list each PR with its current build state
 
 **How to check build status:**
 ```powershell
