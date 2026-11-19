@@ -180,6 +180,22 @@ Invoke-Command -Session $s -ScriptBlock {
 
 ---
 
+## Docked Build Dependencies and Validation
+
+Apply these rules to FE and VB builds:
+
+1. **Record and follow the dependency order:** containment generation -> required generated/published headers -> dependent libraries -> final executable. Record the verified commands and output paths for each stage; do not proceed while a prerequisite is missing.
+
+2. **Restore libraries matching the target branch and toolchain.** Verify dependency provenance and compatibility before replacement. Do not assume FE libraries are compatible with VB, including compiler, LTCG, and XFG options.
+
+3. **Back up dependencies outside Git before replacing them.** Record the original path, backup path, SHA-256 hash, and provenance (source branch/build and toolchain, when known). Record unknown provenance explicitly, verify the backup hash matches the original, and record the replacement's provenance and hash separately.
+
+4. **Never count stub libraries or forced unresolved linking as a successful validation build.** Label artifacts produced with stubs or `/FORCE:UNRESOLVED` as **EXPERIMENTAL** in artifact records and test reports. Their test results do not satisfy final fix validation.
+
+5. **Require a clean, reproducible link before final validation.** Restore compatible dependencies, remove temporary stubs and linker bypasses, and rebuild affected outputs using the normal target-branch build configuration. Record the successful build command, dependency identities, and resulting binary hash, then rerun validation using that binary. Reverting temporary build changes afterward does not establish that an already-produced experimental binary is equivalent to an official build.
+
+---
+
 ## Network Requirements
 
 | VM | Network Needed? | Setup Command | Notes |

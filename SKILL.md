@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.18.2
+version: 2026.11.19.1
 ---
 
 # MSRC Process Agent
@@ -278,6 +278,44 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 - `Release` must match the target branch version (e.g., branch `2610b` → `REL2610`)
 - `BugId` must be the real ADO bug ID for that platform (number, not string)
 - Source paths use `onecore/enduser/WindowsUpdate/muse/orchestrator/...`
+
+### Containment Entry Validation Checklist (MANDATORY)
+
+> **⚠️ Before committing ANY containment entry, verify EVERY field below. The MSRC-156290 session omitted `<changeTime>` and caused a build failure. This checklist prevents that.**
+
+**XML (undocked) — every `<feature>` block MUST have ALL of these:**
+
+| # | Field | Required Value | Common Mistake |
+|---|---|---|---|
+| 1 | `<className>` | `Feature_MSRCXXXXXX` | Wrong MSRC ID |
+| 2 | `<id>` | `MSRCXXXXXX` | Using placeholder instead of real ID |
+| 3 | `<name>` | `Feature_MSRCXXXXXX` | Mismatch with className |
+| 4 | `<description>` | Non-empty | Left blank |
+| 5 | `<stage>` | `AlwaysDisabled` (main) or `EnabledByDefault` (downlevel) | Swapped main/downlevel |
+| 6 | `<enabledByDefaultBranchTokens>` | Present for main, **ABSENT** for downlevel | Added to downlevel |
+| 7 | `<email>` | `{{alias}}@microsoft.com` | Hardcoded wrong alias |
+| 8 | `<changeTime>` | `OnReboot` | **⛔ OMITTED — most common error** |
+
+**JSON (docked) — every `.json` file MUST have ALL of these:**
+
+| # | Field | Required Value | Common Mistake |
+|---|---|---|---|
+| 1 | `owner` | `{{alias}}@microsoft.com` | Hardcoded wrong alias |
+| 2 | `className` | `Feature_MSRCXXXXXX` | Wrong MSRC ID |
+| 3 | `BugId` | Real ADO bug ID (number) | String or placeholder |
+| 4 | `Binary` | Array of affected DLLs | Empty array |
+| 5 | `Release` | `RELXXXX` matching branch | Wrong release code |
+
+**Self-check procedure — run mentally before every `git add`:**
+```
+For each <feature> block I just wrote:
+  ☐ className, id, name all use the correct MSRC ID
+  ☐ stage is correct for this branch type (main vs downlevel)
+  ☐ branch tokens present for main, absent for downlevel
+  ☐ email uses {{alias}} (resolved), not hardcoded
+  ☐ <changeTime>OnReboot</changeTime> is PRESENT (not omitted!)
+  ☐ No extra whitespace or typos in tag names
+```
 
 ---
 
@@ -917,6 +955,54 @@ if ($releaseField -match '(\d{4})\.(\d{2})\s*B') {
 - `official/vb_release_svc_${releaseCode}` (VB, docked)
 
 **⚠️ If the release code from the bug differs from what the IcM or user says, flag a mismatch and ask the user to confirm.**
+
+### Target Branch Resolution (MANDATORY)
+
+> **⚠️ NEVER pick a target branch by scanning all remote branches and guessing. ALWAYS resolve the branch from the release code derived from the bug/IcM.**
+
+**Step-by-step procedure for each platform:**
+
+```powershell
+# 1. Derive release code from the bug Release field (see above)
+#    e.g., "2027.01 B" → releaseCode = "2701b"
+
+# 2. Query remote branches matching that release code for the target platform
+#    Use git ls-remote — this is the ONLY way to find the correct branch.
+
+# GE/BR: check for combined GEBR or separate branches
+$geBranches = git ls-remote --heads origin "release/v15/${releaseCode}_ge*" "release/v15/${releaseCode}_br*"
+# Example output:
+#   refs/heads/release/v15/2701b_gebr        → combined GEBR
+#   refs/heads/release/v15/2610b_ge           → separate GE
+#   refs/heads/release/v15/2610b_br           → separate BR
+#   refs/heads/release/v15/2612b_ge_hotpatch  → hotpatch (ignore for Main OS/SafeOS)
+
+# LT
+$ltBranch = git ls-remote --heads origin "release/v15/${releaseCode}_lt"
+
+# NI
+$niBranch = git ls-remote --heads origin "release/v14/${releaseCode}_ni"
+
+# FE (docked)
+$feBranch = git ls-remote --heads origin "official/fe_release_svc_${releaseCode}"
+
+# VB (docked)
+$vbBranch = git ls-remote --heads origin "official/vb_release_svc_${releaseCode}"
+```
+
+**Branch selection rules:**
+1. **Use ONLY branches that match the derived release code** — if the code is `2701b`, do NOT use `2610b_ge` even if it exists
+2. If `*_gebr` exists for that release code → use it (combined GE+BR)
+3. If `*_ge` and `*_br` exist separately → create separate PRs
+4. If `*_ge_hotpatch` exists → ignore for Main OS / SafeOS DU bugs (hotpatch is separate)
+5. If NO branch matches the release code → **STOP and ask the user**; do not fall back to other release codes
+
+**Common mistake to avoid:**
+```
+❌ WRONG: Search all remote branches with `git branch -r` and pick the first one that
+   has "ge" in the name (this is how MSRC-156290 picked 2610b_ge instead of 2701b_gebr)
+✅ RIGHT: Derive release code from bug → query remote for exact match → use that branch
+```
 
 ### IcM Assessment Validation
 
@@ -1789,7 +1875,7 @@ For multiple MSRCs:
 | Single MSRC (main) | `[main][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Single MSRC (GE) | `[GE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Single MSRC (LT) | `[LT][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
-| Combined GEBR | `[GE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
+| Combined GEBR | `[GE/BR][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Separate BR | `[BR][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | Docked (FE) | `[FE][MSRC 170271] Fix UOP provider Register/Unregister authorization bypass` |
 | 2 MSRCs | `[NI][MSRC 155686,170271] Fix Approve/EvaluateIpuMode UAF race and UOP auth bypass` |
@@ -1933,7 +2019,7 @@ git ls-remote --heads origin "release/v15/XXXXb_ge*" "release/v15/XXXXb_br*"
 **If combined (`*_gebr`):**
 - Create ONE PR targeting the `gebr` branch
 - Link **4 bugs** to this PR: GE Main OS + GE SafeOS DU + BR Main OS + BR SafeOS DU
-- The PR title uses `[GE]`: `[GE] <fix description> (MSRC <ID>)`
+- The PR title uses `[GE/BR]`: `[GE/BR] <fix description> (MSRC <ID>)`
 - No separate code port or PR needed for BR
 
 **If separate (`*_ge` + `*_br`):**
