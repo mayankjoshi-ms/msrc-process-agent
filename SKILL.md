@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.19.3
+version: 2026.11.19.4
 ---
 
 # MSRC Process Agent
@@ -624,10 +624,38 @@ Then: State = `Resolved`, Resolved Reason = `Fixed`
 - All three fields must be set in a **single** `PATCH` call with `application/json-patch+json`
 - For bulk duplicate resolution, use §8a parallel writes
 
-### Close → Won't Fix
+### Close → Won't Fix (Unsupported Platforms)
+
+> **⚠️ ADO does NOT allow direct Active → Closed. Bugs MUST go through Active → Resolved → Closed. When anyone says "close a bug", always resolve it first.**
+
 - Only for unsupported platforms (see platform matrix §4)
 - User explicitly asks
-- Resolved Reason = `Won't Fix`
+- **Step 1: Resolve** — State = `Resolved`, Resolved Reason = `Won't Fix`
+- **Step 2: Close** — State = `Closed` (only after Resolved)
+- Both steps in a single PATCH call (ADO applies them sequentially):
+  ```json
+  [
+    {"op": "add", "path": "/fields/System.State", "value": "Resolved"},
+    {"op": "add", "path": "/fields/Microsoft.VSTS.Common.ResolvedReason", "value": "Won't Fix"},
+    {"op": "add", "path": "/fields/System.State", "value": "Closed"},
+    {"op": "add", "path": "/fields/System.History", "value": "<closure comment>"}
+  ]
+  ```
+- If single-PATCH double-transition fails, do two separate PATCHes: first Resolve, then Close
+
+### ADO Bug State Machine (MANDATORY knowledge)
+
+```
+Active → Resolved → Closed
+         ↗ (set Resolved Reason)
+         
+❌ Active → Closed  (NOT ALLOWED — ADO will reject this)
+✅ Active → Resolved (Won't Fix) → Closed
+✅ Active → Resolved (Fixed) → Closed
+✅ Active → Resolved (Duplicate) → Closed
+```
+
+**When user says "close" → interpret as "resolve then close".**
 
 ### Things This Skill NEVER Does on Its Own
 - Never initiates any bug write without being asked
