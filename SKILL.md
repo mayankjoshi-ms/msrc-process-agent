@@ -1,14 +1,16 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.24.1
+version: 2026.11.24.3
 ---
 
 # MSRC Process Agent
 
 Use this skill when the user says `msrc-process-agent`, asks to backport an MSRC fix, port a security fix to downlevel branches, ship an MSRC across platforms, create MSRC PRs for multiple platforms, manage MSRC task group bugs, or close/duplicate MSRC platform bugs.
 
-This skill is **self-sufficient**. It does not depend on any preloaded skill. It may delegate to available repo-level skills (`uso-vm-testing`, `uus-change-tracker`, `dosvc-coding`) when they are present, but functions fully without them.
+This skill owns the MSRC process workflow. Before any MSRC VM connection, checkpoint, deployment or validation operation, **load `uso-msrc-infra` by that exact name** and follow its infrastructure lookup, platform mapping and protected credential retrieval rules. Do not substitute `uso-vm-testing` or deployment scripts for that reference. If it cannot be loaded, report the discovery failure and stop the VM operation.
+
+Non-VM work does not require infrastructure activation. Available repo-level skills (`uso-vm-testing`, `uus-change-tracker`, `dosvc-coding`) may supplement this workflow without replacing its requirements.
 
 ---
 
@@ -40,7 +42,7 @@ This skill is **self-sufficient**. It does not depend on any preloaded skill. It
 
 ### When to check
 
-Run a version preflight **before ANY write operation** — closing/resolving bugs, filling bug templates, creating PRs, setting triage, or any action that modifies ADO work items, git branches, or containment files. This includes single-bug writes, not just bulk operations.
+Run a version preflight **before ANY write operation** — closing/resolving bugs, filling bug templates, creating PRs, setting triage, or any action that modifies ADO work items, git branches, containment files or VMs. Check both the process skill and activated infrastructure skill versions and SHA-256 hashes. Reload and reread affected instructions if either changed; old summaries are not evidence of compliance.
 
 > **⚠️ MSRC-181704 attempted direct Active→Closed (which ADO rejects) because the session was running an older skill version that didn't have the state machine rule. A version check before the write would have caught this.**
 
@@ -591,7 +593,7 @@ The ReproSteps field MUST use the **"Servicing - Security Bug Case Approval Temp
 - **Attack Scenario**: Describe vulnerability, affected code paths, numbered repro steps, privilege boundary crossed, CWE, and severity
 - **Fix Description**: What was changed, containment feature names and states, files modified
 - **Validation / Regression Risk**: Regression risk rationale first, then before/after bullet-point lists, then per-MSRC validation results
-- **Variant Analysis**: Whether similar patterns exist in other code paths (or "No additional variants identified")
+- **Variant Analysis**: Document the analysis performed and its results; use "No additional variants identified" only when supported by that analysis
 - **Changes Outside Component Area**: 3-column template table (Component Area | Duo/Lead Signoff | Nature of changes)
 - **Regression: "Affected By" Bug**: Usually "No"
 - **ENS-Specific Sec Questions**: Default to "No" unless explicitly known otherwise
@@ -767,7 +769,7 @@ The exact JSON Patch body for resolving as Duplicate (field name is **`Microsoft
 
 ```
 1. Batch-fetch all child bugs from BOTH task groups (2 HTTP calls)
-2. Match bugs by OSG.Product field across task groups
+2. Match bugs by OSG.Product AND Main OS/SafeOS DU type across task groups; stop on missing or ambiguous matches
 3. Present dry run table to user (§8 Golden Rule still applies)
 4. User approves → parallel-write all updates (runspace pool, 10 threads)
 5. Report results: success/fail count + per-bug status
@@ -880,8 +882,8 @@ Using the data gathered, build the full HTML table per §7:
 |---|---|
 | **Attack Scenario** | 1) IcM incident summary 2) PR "Why" section 3) User-provided |
 | **Fix Description** | 1) PR diff + "What" section 2) Containment metadata 3) User-provided |
-| **Validation / Regression Risk** | 1) PR "How tested" section 2) User-provided 3) Default: "Validated by building and running unit tests" |
-| **Variant Analysis** | 1) PR description 2) User-provided 3) Default: "No additional variants identified" |
+| **Validation / Regression Risk** | Verified PR/test evidence or user-provided results; otherwise "Not yet verified" with the missing evidence listed |
+| **Variant Analysis** | Documented analysis evidence; otherwise "Not performed / not verified", never an invented negative result |
 | **Changes Outside Component Area** | 1) PR diff (file/component list) 2) User-provided 3) Default: "None" |
 | **Regression** | Default: "No" (override only if user says otherwise) |
 | **Release notes** | Default: empty (unless Rel Note field == Yes) |
@@ -935,8 +937,8 @@ Show the user:
 │ Template sections filled:                    │
 │  ✅ Attack Scenario (from PR + IcM)          │
 │  ✅ Fix Description (from PR diff)           │
-│  ✅ Validation (from PR description)         │
-│  ✅ Variant Analysis (default: none)         │
+│  Validation (verified evidence or pending)  │
+│  Variant Analysis (performed or pending)    │
 │  ✅ Changes Outside Component (from PR diff) │
 │  ✅ Regression (No)                          │
 │  ✅ ENS fields (all No)                      │
@@ -962,8 +964,8 @@ If user asks to see the full preview, render a readable summary of each section'
 |---|---|---|
 | Attack Scenario | ✅ Auto (PR + IcM) | ⚠️ IcM only, may need user |
 | Fix Description | ✅ Auto (PR diff) | ❌ User must provide |
-| Validation | ✅ Auto (PR desc) | ❌ User must provide |
-| Variant Analysis | ⚠️ Default "none" | ⚠️ Default "none" |
+| Validation | Verified PR/test evidence, otherwise pending | Verified user evidence, otherwise pending |
+| Variant Analysis | Documented analysis, otherwise not performed | Documented analysis, otherwise not performed |
 | Changes Outside | ✅ Auto (PR diff) | ❌ User must provide |
 | Regression | ✅ Default "No" | ✅ Default "No" |
 | ENS fields | ✅ Default "No" | ✅ Default "No" |
@@ -1293,10 +1295,10 @@ bz   # now build the main project
 - Downlevel repos follow same pattern
 
 ### Docked (FE, VB)
-Different build system — **ask user** for build instructions for docked platforms.
+Different build system — consult the exact `uso-msrc-infra` skill first for recorded target-branch commands, dependency order and clean-link requirements. Ask only for missing or ambiguous build information. Stubs and forced-unresolved links produce EXPERIMENTAL artifacts, not final validation builds.
 
 ### Repo Skill Delegation
-If the `uso-vm-testing` skill is available, delegate VM deployment to it.
+Load `uso-msrc-infra` first and resolve the VM and protected credential there. `uso-vm-testing` may supplement deployment only after that lookup; it is not a substitute for infrastructure mapping or credential retrieval.
 
 ### Sequential Build — One Repo at a Time
 
@@ -1571,10 +1573,11 @@ Platform: GE
 The 3a-bis analysis is **NOT a one-time gate**. It must be **re-run from scratch for ALL platforms** whenever the fix scope changes:
 
 **Triggers that require full re-evaluation:**
-1. **Reviewer feedback** — reviewer asks to fix additional functions or add defense-in-depth checks
-2. **New vulnerable site discovered** — variant analysis finds more call sites
-3. **Fix approach changes** — switching from one mitigation strategy to another
-4. **Additional MSRC added** — bundling a second MSRC into the same PR
+1. **Every primary-fix commit** — check applicability and equivalent code on every supported branch; carry forward only findings supported at the new revision
+2. **Reviewer feedback** — reviewer asks to fix additional functions or add defense-in-depth checks
+3. **New vulnerable site discovered** — variant analysis finds more call sites
+4. **Fix approach changes** — switching from one mitigation strategy to another
+5. **Additional MSRC added** — bundling a second MSRC into the same PR
 
 **Re-evaluation procedure:**
 
@@ -2003,20 +2006,23 @@ Next action:
 
 ## 18. Skill Self-Update Protocol
 
-This skill is maintained at 3 locations. **Every update** edits the primary, pushes to GitHub, and copies to Copilot runtime:
+This skill is maintained at 4 locations. **Every update** edits the primary, synchronizes sanitized runtime/mirror copies, and publishes to GitHub only when authorized. Infrastructure updates include `uso-msrc-infra\SKILL.md` and its credential helpers; protected credential files never participate in skill synchronization.
 
 | # | Role | Location | Sync Method |
 |---|---|---|---|
 | 1 | **Primary** | `D:\skill\SKILL.md` | Edit here first |
-| 2 | **GitHub** | `github.com/mayankjoshi-ms/msrc-process-agent` | `git add . && git commit -m "<change summary>" && git push` from `D:\skill` |
+| 2 | **GitHub** | `github.com/mayankjoshi-ms/msrc-process-agent` | Stage only intended sanitized files; commit and push from `D:\skill` when authorized |
 | 3 | **Copilot runtime** | `C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md` | **File copy** from primary (symlinks do NOT work — Copilot reports size=0 and fails to discover the skill) |
+| 4 | **OneDrive mirror** | `C:\Users\mayajoshi\OneDrive - Microsoft\Desktop\Skills\MSRC-Process` | Copy sanitized process and infrastructure skill files from primary |
 
 ### Update Sequence (mandatory)
 ```
-1. Edit D:\skill\SKILL.md
-2. cd D:\skill && git add . && git commit -m "<summary>" && git push
-3. Copy-Item "D:\skill\SKILL.md" "C:\Users\mayajoshi\.copilot\skills\msrc-process-agent\SKILL.md" -Force
-4. Verify hashes match
+1. Edit primary files under D:\skill and bump affected skill versions.
+2. Review intended changes and scan new content for credentials; never stage protected credential files.
+3. Copy sanitized process and infrastructure skill files/helpers to runtime and the OneDrive mirror.
+4. Verify hashes and discovery; reload changed instructions before relying on them.
+5. Check user constraints, current branch and freshly fetched remote before authorized commit/push.
+6. Verify the remote commit and all synchronized copies.
 ```
 
 > **⚠️ Do NOT use symlinks for the Copilot runtime copy.** Copilot's skill discovery cannot follow symlinks (reports size=0, skill not listed).
@@ -2302,6 +2308,12 @@ Do NOT ask "what bug should I link?" if the IcM/MSRC context is available. Find 
 
 ## 21. VM Deployment & Feature Enablement Tools
 
+### Mandatory Infrastructure and Credential Preflight
+
+Before any VM operation, load `uso-msrc-infra` by exact name, verify its current version/hash, and use its platform mapping and `scripts\Get-UsoMsrcCredential.ps1` helper. Reuse known non-secret VM details and responsive sessions for the correct account. Do not ask for a known VM name or re-prompt for a password merely because a new connection is needed.
+
+Credentials are stored outside Git in Windows DPAPI-protected files. Retrieve them into a local `PSCredential` variable without printing, formatting or converting them to plaintext. Ask only when the secure source is unavailable, authentication fails or VM selection is genuinely ambiguous. Never change VM passwords to make a connection work without explicit authorization.
+
 ### VM Version Preflight Check
 
 **Before deploying ANY binary to a VM**, verify that the built binary's branch matches the VM's OS version. Deploying a binary from the wrong branch causes interface mismatches and silent failures.
@@ -2311,16 +2323,10 @@ Do NOT ask "what bug should I link?" if the IcM/MSRC context is available. Find 
 $uusVer = (Get-Item "C:\Program Files\Windows Update Stack\*\MoUsoCoreWorker.exe").VersionInfo.FileVersion
 Write-Host "VM UUS version: $uusVer"
 
-# Compare against your build output version
-# Main (v1500.x) ≠ GE (v1511.x) ≠ LT (v1451.x) ≠ NI (v1401.x)
+# Compare the installed artifact with the verified target branch and build output.
 ```
 
-| VM Type | Expected UUS Major Version | Build From Branch |
-|---|---|---|
-| AB (Canary/Dev) | v1511.x or v1500.x | GE (`*_gebr`/`*_ge`) or main |
-| GE release | v1511.x | GE branch |
-| LT release | v1451.x | LT branch |
-| NI release | v1401.x | NI branch |
+Use the current `uso-msrc-infra` mapping and observed VM OS/module identity, not a guessed generation-to-VM table. Main has no assigned VM and AB is unmapped; resolve compatibility before deploying to either. Reuse verified GE/LT/NI/BR/FE/VB mappings, then compare the target release and installed artifact with the build output.
 
 **If the versions don't match** → build from the correct branch first. Do NOT proceed with sfpcopy.
 
@@ -2442,7 +2448,7 @@ Track VM connection details in the session so the user is never re-asked for inf
 **Track these per-VM:**
 - VM name (Hyper-V name or hostname)
 - IP address
-- Credentials (username — never store passwords in session text; ask user to enter when connecting)
+- Account role/username and protected credential reference; never passwords or decrypted credential material
 - OS version and UUS version (from preflight check)
 - Current checkpoint state
 - What binaries have been deployed
@@ -2460,4 +2466,4 @@ Session VM tracker:
 - When the user provides VM details, store them in the session and reuse them for all subsequent VM operations
 - If a VM IP changes (e.g., after reboot), update the tracker — don't ask the user to re-provide everything
 - When deploying to a VM, reference the tracker to pick the right VM — don't ask "which VM?"
-- Never store actual passwords — only note "credentials provided" and prompt the user to re-enter when establishing a new connection
+- Retrieve existing protected credentials through `uso-msrc-infra` for new connections; do not re-prompt when that source works. Keep passwords out of chat, session text, logs, scripts and Git. If a credential is missing or unusable, request a secure credential prompt for only the affected VM/account, not a password pasted into chat.

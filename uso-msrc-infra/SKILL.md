@@ -1,6 +1,25 @@
+---
+name: uso-msrc-infra
+description: Operational infrastructure for USO MSRC work, including platform and VM mapping, secure credential retrieval, build integrity, deployment and evidence-based validation.
+version: 2026.11.24.1
+---
+
 # USO MSRC Infrastructure
 
 Use this skill for MSRC fix infrastructure: VM-to-repo mapping, credentials, build commands, binary deployment, testing methodology, and workflow optimizations. This is the operational reference for executing MSRC fixes across all USO/UUS platforms.
+
+## Mandatory Infrastructure Lookup
+
+Before any MSRC VM connection, checkpoint, deployment or validation operation:
+
+1. Load **`uso-msrc-infra` by this exact skill name**. Do not substitute `uso-vm-testing`, infer credentials from deployment scripts, or assume a referenced skill was loaded automatically. If discovery fails, report the precise failure and stop the VM operation.
+2. Compare the loaded version and SHA-256 with this skill on disk before operational writes. Reload changed instructions and reread the relevant section before proceeding. An old session summary does not override current requirements.
+3. Resolve the target platform through the mapping below and the session's last verified VM state. Reuse known non-secret VM names, account roles, paths and checkpoint records; verify OS and loaded module identities rather than asking the user to repeat them.
+4. Resolve the target release from authoritative case records and freshly fetched remote refs. Mapping patterns are not permission to guess another release. Main and AB are not assigned a compatible VM by this table.
+5. Reuse an authenticated session for the correct VM/account when it is still responsive. Otherwise retrieve the protected credential as described below. Ask only when mapping is missing/ambiguous, the secure source cannot be used, or authentication fails; request only the missing information.
+6. Preserve VM ownership across sessions. Do not restore a checkpoint or modify a VM assigned to another active case without resolving ownership first.
+
+This infrastructure reference supplements `msrc-process-agent`; it does not authorize VM changes, bug writes, commits or pushes by itself.
 
 ---
 
@@ -35,7 +54,7 @@ Use this skill for MSRC fix infrastructure: VM-to-repo mapping, credentials, bui
 
 ## VM Checkpoint Policy
 
-> ⚠️ **Always restore VMs to the `Fresh-VM` Hyper-V checkpoint before starting a new MSRC case.**
+> ⚠️ **Restore an available, unowned VM to the `Fresh-VM` Hyper-V checkpoint before starting a new MSRC case.** First resolve ownership and preserve another active case's state; resuming an existing case does not authorize a baseline reset.
 
 Each VM has a `Fresh-VM` checkpoint in Hyper-V — a clean state with the original OS binary, no test artifacts, and pending Windows Updates available (needed for PoC). Before any new MSRC work:
 
@@ -61,34 +80,32 @@ This ensures:
 
 ## VM Credentials
 
-### Admin Accounts
+### Protected Local Credential Source
 
-| VM Type | VMs | Username | Password |
-|---|---|---|---|
-| **Clients** (desktop OS) | GE, NI, BR, VB | `mj` | `123` |
-| **Servers** (server OS) | LT, FE | `Administrator` | `Pass@123#` |
+Credentials are stored at `%LOCALAPPDATA%\USO-MSRC\Credentials\<VMName>.<Role>.clixml`, outside Git and cloud-synchronized skill folders. Passwords are encrypted with Windows DPAPI for the Windows user and machine that provisioned them. Directory access is restricted to that user and SYSTEM.
 
-### Local Account
-
-| Username | Password | Notes |
-|---|---|---|
-| `test` | *(none)* | Local non-admin user, all VMs |
+Roles are `Admin` and `Standard`. Protected entries were migrated for GE, LT, NI, BR, FE and VB from their recorded account setup. Main and AB remain unmapped. A stored entry is not proof of successful authentication; the standard-user account may have changed since the recorded setup.
 
 ### Connection Template
 
+Locate `scripts\Get-UsoMsrcCredential.ps1` relative to the loaded `uso-msrc-infra` skill directory. Do not print its result or decrypt passwords into text.
+
 ```powershell
-# Connect to a VM via PowerShell Direct (Hyper-V VMBus — no network needed)
-$cred = New-Object PSCredential("<username>", (ConvertTo-SecureString "<password>" -AsPlainText -Force))
-$s = New-PSSession -VMName "<VMName>" -Credential $cred -ErrorAction Stop
-
-Invoke-Command -Session $s -ScriptBlock {
-    # Your commands here
-}
-
-Remove-PSSession $s
+$vmName = 'GE' # Resolve from the platform mapping and verified session state.
+$helper = Join-Path $infraSkillDirectory 'scripts\Get-UsoMsrcCredential.ps1'
+$credential = & $helper -VMName $vmName -Role Admin
+$s = New-PSSession -VMName $vmName -Credential $credential -ErrorAction Stop
 ```
 
-> ⚠️ Sessions do NOT persist across PowerShell calls — recreate `$cred` and `New-PSSession` each time.
+Reuse a responsive authenticated session for the same VM and account. Use `-Role Standard` for the recorded standard-user identity, never an admin credential for an attacker test. Refresh only changing non-secret facts, such as IP or deployment state.
+
+If the protected credential is missing, cannot be decrypted under the current Windows identity/machine, or authentication fails, report that specific blocker and request a secure credential prompt for the affected VM/account. Do not ask for passwords in chat, echo them, or recreate/change VM accounts automatically.
+
+### Secure Provisioning or Replacement
+
+After explicit authorization, use `scripts\Set-UsoMsrcCredential.ps1 -VMName <VMName> -Role <Admin|Standard>`. It requests credentials through `Get-Credential` and stores a protected `PSCredential`; it does not change a VM password. Add `-Replace` only when replacement has been approved. Never pass a plaintext password on the command line.
+
+Do not copy credential files to Git, skill mirrors, reports or session artifacts. On another Windows user/machine, provision through its secure source rather than assuming these files are portable. Keep only the source reference and non-secret connection state in session tracking.
 
 ---
 
@@ -347,9 +364,9 @@ Inspect every changed line for:
 
 2. **Reproduce the exact attack scenario** — same race conditions, same thread counts, same COM calls. The goal is to trigger the vulnerability, not to verify code coverage.
 
-3. **Before-fix MUST crash** — if the before-fix test doesn't crash, the test is not valid. The vulnerability must be proven exploitable before the fix can be validated. If before-fix doesn't crash, escalate technique (register poisoning via CDB, page heap, higher thread count, longer duration).
+3. **Establish the reported security effect before the fix** — a baseline may demonstrate unauthorized access, modification, disclosure or a crash, depending on the report. A crash is not universally required. Classify natural reproduction, researcher-assisted debugging and artificial fault injection separately; an injected invalid-pointer crash does not by itself prove the reported race or exploit.
 
-4. **After-fix MUST survive the same attack** — run the identical PoC with identical parameters against the fixed binary. Zero crashes across multiple stress runs = fix validated.
+4. **After-fix MUST block the reported effect under the same scenario** — run the original repro against the cleanly linked fixed binary. Record positive evidence that the scenario executed, the intended mitigation took effect, and legitimate operations still work. Absence of a crash alone is not validation.
 
 5. **Never declare "fix works" based on**:
    - Code path inspection / disassembly alone
@@ -363,33 +380,35 @@ Use the same tools the attacker/researcher used. If the researcher's PoC or repr
 
 If the researcher reproduced without a debugger (e.g., standalone PoC binary that crashes on its own), run the PoC the same way — no debugger needed.
 
-**Rule: Match the attacker's methodology exactly.**
+**Rule: Match the researcher's methodology and label the evidence accurately.** Debugger-assisted observations supplement the reported repro; they do not turn artificial fault injection into natural reproduction.
 
 ```
-1. Identify the vulnerable instruction (RVA from researcher or disassembly)
-2. Set CDB breakpoint at that RVA
-3. When hit, poison the register used for memory access (e.g., rdx=dead0000dead0000)
-4. Continue execution → if UAF exists, the poisoned pointer causes immediate AV
-5. Before-fix: AV proves the vulnerability
-6. After-fix: breakpoint never hit (guarded by lock/feature flag) = fix works
+1. Record the binary hash, loaded module path and matching PDB identity.
+2. Derive observation points for that exact binary; never reuse old RVAs blindly.
+3. Run the reported scenario and capture the relevant state and outcome.
+4. Label debugger modifications separately from naturally observed failures.
+5. Re-derive observation points after rebuilding and verify the fixed path executes.
+6. Zero breakpoint hits is UNKNOWN coverage, not evidence that the fix works.
 ```
 
 ### What a valid test report looks like
 
 ```
 BEFORE FIX (original binary):
-  - Binary: MoUsoCoreWorker.exe v1407.2606.10012.0 (original, 5,247,984 bytes)
-  - Attack: PoC 60 threads, 180s, CDB bp at +0x851FC, rdx poisoned
-  - Result: c0000005 Access Violation at MoUsoCoreWorker+0x851FC
-  - Evidence: crash dump saved, call stack captured
+  - Binary: original version, SHA-256, module path and PDB identity recorded
+  - Scenario: original researcher repro and parameters recorded
+  - Result: reported security effect observed; debugging/fault injection labeled separately
+  - Evidence: timestamped repro logs and relevant trace/dump paths recorded
 
 AFTER FIX (fixed binary):
-  - Binary: MoUsoCoreWorker.exe (fixed, 5,267,456 bytes)
+  - Binary: clean-link fixed artifact, SHA-256 and PDB identity recorded
   - Feature staging: Feature_MSRC155686 = EnabledByDefault (verified)
   - VM restarted: Yes
-  - Attack: SAME PoC, SAME params, CDB bp at +0x851FC
-  - Result: 0 breakpoint hits, 0 crashes, process survived full stress test
-  - Evidence: CDB log shows 0 AV, 0 BP hits; event log clean
+  - Scenario: SAME repro and parameters; observation points match the new artifact
+  - Result: mitigation positively observed; reported effect blocked
+  - Coverage: executed / expected rejection / gateway-blocked / untested per method
+  - Regression: legitimate operation completed, not merely dispatched
+  - Evidence: timestamped execution logs, feature state and result paths recorded
 ```
 
 ---
@@ -454,7 +473,7 @@ Before writing a custom repro script, **always read the researcher's exact PoC c
 Building a repro from scratch and hitting validation errors one-by-one (hash mismatch, BOM in JSON, malformed catalog, etc.) wastes hours. The researcher already solved these problems.
 
 #### 7. Reuse existing `test` user — don't create users
-All VMs have a local standard user `test` (no password). PoC scripts should accept `-UserName test` and reuse it. Never try to create a new user — it adds complexity and may conflict with existing accounts.
+The mapped VMs historically used a local standard user `test`. Reuse the verified account and its `Standard` protected credential; do not assume its password remains empty or substitute an admin token. If authentication fails, securely refresh only that account's credential. Do not create or change VM accounts without explicit authorization.
 
 ### Build & Deploy
 
@@ -492,12 +511,9 @@ if (Feature_MSRC170271::IsEnabled())
 ```
 
 #### 11. Check feature gates before porting to downlevel
-Some vulnerable code only exists on platforms where a feature gate is enabled (e.g., `Feature_UOvNext` gates WinRT provider code). **Before porting a fix to a platform:**
-1. Check if the vulnerable code path exists on that platform's branch
-2. Check if the controlling feature gate is enabled on that platform
-3. If the code doesn't exist or the gate is disabled → platform is NOT vulnerable → close bug as Won't Fix
+Distinguish absent code, compile-time exclusion and a configurable runtime feature state. A disabled feature or absent WinRT wrapper does not prove that equivalent backend interfaces are absent or protected.
 
-This saved work on MSRC-170271: NI, FE, VB were confirmed not vulnerable because `Feature_UOvNext` wasn't enabled.
+Before porting, check each site and its equivalent backend routes on the target branch. Record source revision, gate behavior and protection evidence. Recheck **all supported platforms** after every primary-fix commit or scope change, including platforms previously skipped. A "not applicable" finding applies only to the sites and revision examined; it is not permission to close bugs automatically.
 
 ### Workflow Optimizations
 
@@ -570,3 +586,45 @@ An active incident does not prove a fix is uncommitted; a mitigated incident doe
 Preserve independent feature entries and intended changes from both branches. Review edits or deletions of the same feature explicitly; do not blindly take an entire side or union all entries.
 
 After resolution, check for conflict markers, duplicate feature identities, correct target-branch metadata, and XML/schema validity. Review the resolved diff before committing. A successful merge commit or push proves neither schema validation nor a passing build; report those outcomes separately and associate CI results with the latest source commit.
+
+#### 18. Use action-time evidence gates, not old completion summaries
+
+Before a commit, push, PR creation or final validation, check current skill versions, user constraints, expected branch/base SHA, source revision, containment validity, dependency/link status, deployed artifact hashes, test evidence and applicable CI status. Mark missing evidence UNKNOWN or BLOCKED; never reconstruct a PASS from an earlier assistant summary.
+
+A stub-linked artifact remains EXPERIMENTAL even if a later status report calls it validated. After restoring compatible dependencies, require a clean rebuild and rerun against the newly identified artifact before upgrading that status.
+
+#### 19. Re-evaluate the whole surface after fix scope changes
+
+After each primary-fix commit, reviewer-requested expansion or new variant, update the site list and recheck Main, GE, GE-LT, NI, BR, FE and VB. Include underlying COM/backend routes, constructors, getters and alternate activation paths, not only the original wrapper.
+
+For each site record exists/absent/refactored, current protection and action. Trace changed invariants through unchanged copies, wrappers, caches and returned objects; an intermediate hardened object is insufficient if the final consumer receives an unsafe copy.
+
+#### 20. Report test coverage and operation completion precisely
+
+Distinguish executed success, expected rejection, blocked at an earlier gateway, unavailable setup and untested paths. A matching HRESULT alone does not identify which guard fired; use traces, source/artifact identity and controlled before/after evidence.
+
+Use valid inputs that reach the intended layer. Invalid-input failures do not establish authorization coverage. Fire-and-forget dispatch, service survival and "no errors" do not prove a scan/download completed; observe its terminal state. Preserve these limitations in PR and bug validation text.
+
+#### 21. Isolate hardening errors from destructive recovery
+
+Trace new permission/security errors through callers, startup retries and recovery. Keep hardening failures distinguishable from actual data corruption so a healthy database cannot be discarded merely because its permissions could not be updated.
+
+Do not swallow the security failure or continue insecurely. State conditional code-review risks as conditional; do not claim they were reproduced without evidence.
+
+#### 22. Assess intended access for the actual caller class
+
+For read-access reports, establish what data is exposed, its sensitivity and the intended access policy for the reported identity. "Readable by everyone" must explicitly cover AppContainer/LPAC when those are the reported callers. Read-only access alone is not a Not-a-Vulnerability rationale.
+
+Keep proposed engineering conclusions separate from MSRC-approved assessments. Use the latest authoritative assessment and revision, not a shipping comment or incident lifecycle state.
+
+#### 23. Match duplicate bugs by product and deployment surface
+
+Map duplicate parents using both platform/product and Main OS versus SafeOS DU. Detect missing or ambiguous matches before presenting changes. Do not infer identical scope or impact from similar names, a shared object or the same reporter.
+
+Separate assessment, duplicate relationship, shipping and lifecycle records. Preserve explicit user scope and approval requirements; do not change original bugs, task groups or incidents merely because child duplicates are being dispositioned.
+
+#### 24. Verify skill facts before propagating edits
+
+Check platform/repository/branch facts against authoritative records before changing mappings, containment formats or build systems. Review semantic changes and runnable examples together, then bump versions and verify synchronized copies.
+
+Keep one authoritative instruction for each policy. Never replace known docked FE/VB workflows with a guessed UUS generation mapping. Test discovery and credential-helper behavior after changing frontmatter or infrastructure linkage; copying a file alone does not establish that sessions can load it.
