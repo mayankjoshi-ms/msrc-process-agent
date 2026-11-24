@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.24.3
+version: 2026.11.24.4
 ---
 
 # MSRC Process Agent
@@ -434,7 +434,7 @@ This applies to ALL branch operations: creating topic branches, cherry-picking f
 |---|---|---|
 | Release | `Microsoft.VSTS.Common.Release` | Downlevel: `YYYY.MM B`; Main: current codename |
 | How Found | `Microsoft.VSTS.CMMI.HowFound` | `Security: MSRC` |
-| Binary Filename | `OSG.Loc.BinaryFilename` | Affected binaries (e.g., `usosvcimpl.dll`) |
+| Binary Filename | `OSG.Loc.BinaryFilename` | Affected binaries — use full names: `usosvcimpl.dll`, `MoUsoCoreWorker.exe`. Never use shorthand like "coreworker" or "usosvc" in bug fields. |
 | LOC Impact | `OSG.LocImpact` | `No` |
 | Regression | `Microsoft.VSTS.Common.Regression` | `No` |
 | Update Type | `OSG.UpdateType` | `Cumulative` (downlevel only) |
