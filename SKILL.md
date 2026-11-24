@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
-description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.19.5
+description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (all undocked, all in UUS repo). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
+version: 2026.11.19.6
 ---
 
 # MSRC Process Agent
@@ -166,7 +166,11 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 
 ## 4. Platform Support Matrix
 
-### Main OS Platforms
+> **⚠️ ALWAYS use the standard platform names below (Main, GE, GE-LT, NI, BR, FE, VB). NEVER list platforms by UUS code version number (v10, v11, v12, v13, v14, v15). The version number is an internal code generation — it is NOT a platform name.**
+>
+> When asked "what platforms are supported," return this table. Do NOT improvise a generation-based taxonomy.
+
+### All Supported Platforms (ALL undocked — ALL in the UUS repo)
 
 | Platform | ADO Product | Repo | Branch Pattern | Status |
 |---|---|---|---|---|
@@ -175,8 +179,8 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 | **GE-LT** | Windows (Ge) LT | uus | `release/v15/XXXXb_lt` | ✅ Supported |
 | **NI** | Windows 11 22H2 | uus | `release/v14/XXXXb_ni` | ✅ Supported |
 | **BR** | Windows (Br) | uus | `release/v15/XXXXb_br` or covered by `*_gebr` | ✅ Supported — check remote branch |
-| **FE** | Windows Server 2022 | os.2020 | `official/fe_release_svc_XXXXb` | ✅ Supported (docked) |
-| **VB** | Windows 10 2004 | os.2020 | `official/vb_release_svc_XXXXb` | ✅ Supported (docked) |
+| **FE** | Windows Server 2022 | uus | `release/v10/XXXXb` or `release/v10/XXXXd` | ✅ Supported (undocked) |
+| **VB** | Windows 10 2004 | uus | `release/v11/XXXXb` | ✅ Supported (undocked) |
 | GE Hotpatch | Windows (Ge) Hotpatch | — | — | ❓ Unknown — ask user |
 | GE-LT Hotpatch | Windows (Ge) LT Hotpatch | — | — | ❓ Unknown — ask user |
 | Server 2022 Hotpatch | Windows Server 2022 Hotpatch | — | — | ❓ Unknown — ask user |
@@ -199,16 +203,18 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 | Win 10 1809 SafeOS | — | ❌ Not supported |
 
 **Notes:**
+- **ALL platforms are undocked and in the UUS repo.** There is no "docked" platform in os.2020.
 - No SafeOS DU for Main.
 - For ❌ platforms, skip them silently and note as "not applicable for USO".
 - For ❓ platforms, ask user before proceeding.
 - Unsupported platform bugs should be closed as **Won't Fix** (with user approval).
+- When answering "which platforms need a fix," first list ALL supported platforms from this table, then separately analyze which are affected by the specific vulnerability. Never skip platforms or assume they're irrelevant without code analysis.
 
 ---
 
 ## 5. Containment Format Reference
 
-### Undocked (Main, GE, GE-LT, NI, BR) — `.featurestaging` XML
+### All Platforms (ALL undocked — ALL in UUS repo) — `.featurestaging` XML
 
 - **File**: `src/common/featurestaging-UndockedUpdateStack-MSRC.featurestaging`
 - All MSRC features in ONE shared file.
@@ -298,7 +304,8 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 | 7 | `<email>` | `{{alias}}@microsoft.com` | Hardcoded wrong alias |
 | 8 | `<changeTime>` | `OnReboot` | **⛔ OMITTED — most common error** |
 
-**JSON (docked) — every `.json` file MUST have ALL of these:**
+**JSON containment (DEPRECATED — no longer applicable since all platforms are undocked):**
+> The JSON format below was for the os.2020 docked repo. Since FE and VB are now confirmed as undocked (UUS repo), all platforms use XML `.featurestaging`. This section is retained for historical reference only.
 
 | # | Field | Required Value | Common Mistake |
 |---|---|---|---|
@@ -372,7 +379,7 @@ E:\uus-ni    → user/mayajoshi/msrc-170271-authz-check
 
 ### Reviewer Groups
 
-**Undocked (Main, GE, GE-LT, NI, BR):**
+**All Platforms (ALL undocked):**
 | Reviewer | Required? |
 |---|---|
 | `[TEAM FOUNDATION]\UUS Containment Champs` | ✅ Required (all) |
@@ -1001,8 +1008,8 @@ if ($releaseField -match '(\d{4})\.(\d{2})\s*B') {
 - `release/v15/${releaseCode}_ge*` / `release/v15/${releaseCode}_br*` (GEBR detection)
 - `release/v15/${releaseCode}_lt` (GE-LT)
 - `release/v14/${releaseCode}_ni` (NI)
-- `official/fe_release_svc_${releaseCode}` (FE, docked)
-- `official/vb_release_svc_${releaseCode}` (VB, docked)
+- `release/v10/${releaseCode}` or `release/v10/${releaseCode}d` (FE, undocked)
+- `release/v11/${releaseCode}` (VB, undocked)
 
 **⚠️ If the release code from the bug differs from what the IcM or user says, flag a mismatch and ask the user to confirm.**
 
@@ -1033,11 +1040,11 @@ $ltBranch = git ls-remote --heads origin "release/v15/${releaseCode}_lt"
 # NI
 $niBranch = git ls-remote --heads origin "release/v14/${releaseCode}_ni"
 
-# FE (docked)
-$feBranch = git ls-remote --heads origin "official/fe_release_svc_${releaseCode}"
+# FE (undocked — UUS repo)
+$feBranch = git ls-remote --heads origin "release/v10/${releaseCode}*"
 
-# VB (docked)
-$vbBranch = git ls-remote --heads origin "official/vb_release_svc_${releaseCode}"
+# VB (undocked — UUS repo)
+$vbBranch = git ls-remote --heads origin "release/v11/${releaseCode}*"
 ```
 
 **Branch selection rules:**
@@ -1138,8 +1145,8 @@ For each bug in the task group:
 | Main OS | GE-LT | ✅ Fix | Supported |
 | Main OS | NI | ✅ Fix | Supported |
 | Main OS | BR | ✅ Fix | Supported |
-| Main OS | FE | ✅ Fix | Supported (docked) |
-| Main OS | VB | ✅ Fix | Supported (docked, last) |
+| Main OS | FE | ✅ Fix | Supported (undocked) |
+| Main OS | VB | ✅ Fix | Supported (undocked) |
 | Main OS | Win 10 1809 | ❌ Close | Not supported |
 | Main OS | Win 10 1607 | ❌ Close | Not supported |
 | Main OS | Win 8.1 | ❌ Close | Not supported |
@@ -1148,8 +1155,8 @@ For each bug in the task group:
 | SafeOS DU | GE-LT | ✅ Fix | Supported |
 | SafeOS DU | NI | ✅ Fix | Supported |
 | SafeOS DU | BR | ✅ Fix | Supported |
-| SafeOS DU | FE | ✅ Fix | Supported (docked) |
-| SafeOS DU | VB | ✅ Fix | Supported (docked) |
+| SafeOS DU | FE | ✅ Fix | Supported (undocked) |
+| SafeOS DU | VB | ✅ Fix | Supported (undocked) |
 | SafeOS DU | Unsupported | ❌ Close | Not supported |
 | Hotpatch | GE | ❌ Close | **10B = coldpatch month** |
 | Hotpatch | GE-LT | ❌ Close | **10B = coldpatch month** |
@@ -1217,7 +1224,7 @@ From the task group:
 
 ## 11. Build Process
 
-### Undocked (Main, GE, GE-LT, NI, BR)
+### All Platforms (ALL undocked — ALL in UUS repo)
 
 Both commands MUST run in the **same shell session** (dazzle sets env vars):
 
@@ -1268,8 +1275,8 @@ bz   # now build the main project
 - `E:\uus-ni\build\dazzle.ps1` (NI)
 - Downlevel repos follow same pattern
 
-### Docked (FE, VB)
-Different build system — **ask user** for build instructions for docked platforms.
+### FE/VB Build Notes
+FE (v10) and VB (v11) are undocked in the UUS repo but use older code versions with potentially different build configurations. Build them using the same `dazzle.ps1 + bz/bcz` workflow as other platforms. If build issues arise due to older dependencies, refer to the `uso-msrc-infra` skill's "FE/VB Build Dependencies and Validation" section.
 
 ### Repo Skill Delegation
 If the `uso-vm-testing` skill is available, delegate VM deployment to it.
@@ -1283,7 +1290,7 @@ If the `uso-vm-testing` skill is available, delegate VM deployment to it.
 2. **Close the previous dazzle shell** before opening a new one for the next repo — dazzle sets env vars that conflict across repos.
 3. Follow this order (most critical first):
    ```
-   main → GE → LT → NI → BR → (docked if applicable)
+   main → GE → LT → NI → BR → FE → VB
    ```
 4. After each build completes, record pass/fail before moving to the next.
 
@@ -1542,18 +1549,17 @@ Platform: GE
 
 **3b. Apply Fix**
 1. Cherry-pick or manually port the fix from the primary branch — **only for sites identified as needing a fix in 3a-bis**
-2. Adapt code paths if needed (docked vs undocked differences)
+2. Adapt code paths if needed (older code versions may have slightly different APIs)
 3. Follow coding standards from AGENTS.md and copilot-instructions.md
 
 **3c. Containment Metadata**
-1. Add/update containment entry (XML for undocked, JSON for docked)
+1. Add/update containment entry (XML `.featurestaging` for all platforms)
 2. Use correct stage (`AlwaysDisabled` + tokens for main, `EnabledByDefault` for downlevel)
 3. Use real bug ID (never placeholder)
 4. Run triple-consistency check (§9)
 
 **3d. Include Header**
-- Undocked: `#include "FeatureStaging-UndockedUpdateStack-MSRC.h"`
-- Docked: `#include <featurestaging-servicing-security.h>`
+- All platforms: `#include "FeatureStaging-UndockedUpdateStack-MSRC.h"`
 
 **3e. Code Porting Verification (MANDATORY)**
 
@@ -1565,7 +1571,7 @@ After applying the fix, verify that ALL functional code changes from the primary
 
 2. **For each code file changed in the primary fix:**
    - Confirm the same file exists in the downlevel repo
-   - If the file path differs (docked vs undocked), identify the equivalent file
+   - If the file path differs between code versions, identify the equivalent file
    - Compare the functional code change (the actual fix lines) — they must match or have an equivalent adaptation
 
 3. **Diff comparison command:**
@@ -1591,13 +1597,13 @@ After applying the fix, verify that ALL functional code changes from the primary
 5. **Flag any discrepancies:**
    - ❌ **MISSING file** — file changed in primary but not in port
    - ❌ **MISSING hunk** — some code changes present in primary but absent in port
-   - ⚠️ **ADAPTED** — code change is logically equivalent but syntactically different (e.g., different API names in docked vs undocked) — explain why
+   - ⚠️ **ADAPTED** — code change is logically equivalent but syntactically different (e.g., different API names between code versions) — explain why
    - ✅ **MATCH** — identical functional change
 
 6. **Expected differences (do NOT flag as missing):**
-   - Containment metadata format (XML vs JSON)
-   - Include headers (`FeatureStaging-UndockedUpdateStack-MSRC.h` vs `featurestaging-servicing-security.h`)
-   - Feature gate macro names (undocked vs docked naming)
+   - Containment metadata format differences between code versions
+   - Include headers
+   - Feature gate macro names between code versions
    - File paths that differ between repos but contain the same logic
 
 7. **Block if incomplete:** If any file or hunk is ❌ MISSING, do NOT proceed to Stage & Review. Ask the user whether to port the missing changes or skip with justification.
@@ -1633,8 +1639,8 @@ Porting status per platform:
 │ GE-LT    │ ✅ Match         │ ✅ Match         │ ✅ OK  │
 │ NI       │ ✅ Match         │ ⚠️ Adapted       │ ✅ OK  │
 │ BR       │ ✅ Match         │ ❌ MISSING       │ ❌     │
-│ FE       │ ✅ Match (docked)│ ✅ Match (docked)│ ✅ OK  │
-│ VB       │ ✅ Match (docked)│ ✅ Match (docked)│ ✅ OK  │
+│ FE       │ ✅ Match         │ ✅ Match         │ ✅ OK  │
+│ VB       │ ✅ Match         │ ✅ Match         │ ✅ OK  │
 └──────────┴──────────────────┴──────────────────┴────────┘
 
 Containment: Verified separately per platform (§9 triple-check)
@@ -2019,7 +2025,7 @@ Every MSRC PR description MUST include a **"Vulnerable sites and fix status"** t
 | `Fixed in this PR (<brief how>)` | Site is vulnerable and this PR fixes it |
 | `Already protected (<lock type> at line X)` | Site exists but already has adequate protection |
 | `Code refactored away on <PLATFORM> (no <function>, <member1>, or <member2>)` | Function and related members don't exist |
-| `Does not exist on docked (<PLATFORM>)` | Code path not present on docked platforms |
+| `Does not exist on <PLATFORM>` | Code path not present on this platform's code version |
 
 **Rules:**
 - The table must list ALL sites from the primary fix — even those that don't need a fix on this platform

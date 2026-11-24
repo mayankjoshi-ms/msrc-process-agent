@@ -6,7 +6,9 @@ Use this skill for MSRC fix infrastructure: VM-to-repo mapping, credentials, bui
 
 ## Platform → VM → Repo Mapping
 
-### Undocked Platforms (UUS repo)
+> **ALL platforms are undocked and in the UUS repo.** Use standard platform names (Main, GE, GE-LT, NI, BR, FE, VB) — never UUS version numbers (v10, v11, v14, v15).
+
+### All Platforms (UUS repo — undocked)
 
 | Platform | VM Name | Repo Folder | ADO Repo | Branch Pattern | UUS Version Series | Binary Path on VM |
 |---|---|---|---|---|---|---|
@@ -15,15 +17,10 @@ Use this skill for MSRC fix infrastructure: VM-to-repo mapping, credentials, bui
 | **GE-LT** | `LT` | `E:\uus-lt` | `uus` | `release/v15/XXXXb_lt` | v1506 | `C:\Windows\uus\packages\preview\AMD64\MoUsoCoreWorker.exe` |
 | **NI** | `NI` | `E:\uus-ni` | `uus` | `release/v14/XXXXb_ni` | v1407 | `C:\Windows\uus\packages\preview\AMD64\MoUsoCoreWorker.exe` |
 | **BR** | `BR` | `E:\uus-br` | `uus` | `release/v15/XXXXb_br` | v15xx | `C:\Windows\uus\packages\preview\AMD64\MoUsoCoreWorker.exe` |
+| **FE** | `FE` | `E:\uus-fe` | `uus` | `release/v10/XXXXb` or `release/v10/XXXXd` | v10xx | `C:\Windows\uus\packages\preview\AMD64\MoUsoCoreWorker.exe` |
+| **VB** | `VB` | `E:\uus-vb` | `uus` | `release/v11/XXXXb` | v11xx | `C:\Windows\uus\packages\preview\AMD64\MoUsoCoreWorker.exe` |
 
 ¹ GE and GE-LT share the same target branch pattern `release/v15/XXXXb_gebr` for GE, but `E:\uus-ge` is the working repo for GE-specific branches.
-
-### Docked Platforms (os.2020 repo)
-
-| Platform | VM Name | Repo Folder | ADO Repo | Branch Pattern | Binary |
-|---|---|---|---|---|---|
-| **FE** | `FE` | `F:\fe\src` | `os.2020` | `official/fe_release_svc_XXXXb` | `usosvcimpl.dll` / `MoUsoCoreWorker.exe` |
-| **VB** | `VB` | `F:\vb\src` | `os.2020` | `official/vb_release_svc_XXXXb` | `usosvcimpl.dll` / `MoUsoCoreWorker.exe` |
 
 ### Other VMs
 
@@ -180,9 +177,9 @@ Invoke-Command -Session $s -ScriptBlock {
 
 ---
 
-## Docked Build Dependencies and Validation
+## FE/VB Build Dependencies and Validation
 
-Apply these rules to FE and VB builds:
+Apply these rules to FE and VB builds (which use older UUS code versions with different build configurations):
 
 1. **Record and follow the dependency order:** containment generation -> required generated/published headers -> dependent libraries -> final executable. Record the verified commands and output paths for each stage; do not proceed while a prerequisite is missing.
 
@@ -227,7 +224,7 @@ Examples:
 - `user/mayajoshi/msrc-155686-2701b_lt`
 - `user/mayajoshi/msrc-155686-2701b_ni`
 - `user/mayajoshi/msrc-155686-2610b_br`
-- `user/mayajoshi/msrc-155686-fe-2701b` (docked — slightly different pattern)
+- `user/mayajoshi/msrc-155686-fe-2701b` (FE — uses same branch naming convention)
 
 ### Mandatory Branch Preflight
 
