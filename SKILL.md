@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.19.6
+version: 2026.11.24.1
 ---
 
 # MSRC Process Agent
@@ -29,6 +29,8 @@ This skill is **self-sufficient**. It does not depend on any preloaded skill. It
    - ✅ Platform bug linked to the PR (`az repos pr work-item add`)
    If ANY of these cannot be completed, do NOT create the PR — flag the blocker to the user instead.
    - ⛔ Do NOT add reviewers — the user will add reviewers manually.
+10. **Decision consistency** — once a technical finding is stated (e.g., "NI is not affected"), do NOT reverse it later without **new evidence** (new code search, reviewer feedback, updated analysis). Never flip-flop between "applicable" and "not applicable" for a platform in the same session without explicitly citing what changed.
+11. **Honor user constraints** — when the user says "don't commit", "don't push", or "no PRs yet", treat it as a **hard constraint** that persists for the rest of the session (or until the user explicitly lifts it). Track these constraints and check them before any git write operation. Never silently violate a user constraint.
 
 ---
 
@@ -376,6 +378,21 @@ E:\uus-ge    → user/mayajoshi/msrc-170271-authz-check
 E:\uus-lt    → user/mayajoshi/msrc-170271-authz-check
 E:\uus-ni    → user/mayajoshi/msrc-170271-authz-check
 ```
+
+### Always Fetch Before Checkout (MANDATORY)
+
+Before checking out any remote branch or creating a topic branch from a remote base, **always run `git fetch origin` first**. Stale local refs cause checkout failures, wrong base commits, and merge conflicts.
+
+```powershell
+# ✅ CORRECT — always fetch first
+git fetch origin
+git checkout -b user/mayajoshi/msrc-170271-fix origin/release/ge_release
+
+# ❌ WRONG — no fetch, local ref may be stale
+git checkout -b user/mayajoshi/msrc-170271-fix origin/release/ge_release
+```
+
+This applies to ALL branch operations: creating topic branches, cherry-picking from remote, checking out existing remote branches, and rebasing onto a remote base.
 
 ### Reviewer Groups
 
@@ -1547,6 +1564,55 @@ Platform: GE
 - A site that exists but is refactored = check if the equivalent code is protected; document either way
 - **Never blindly port all fix sites** — only fix what's actually vulnerable on each platform
 
+**3a-ter. Re-Evaluate ALL Platforms After Every Scope Change (MANDATORY)**
+
+> **⚠️ MSRC-170271 initially determined NI/FE/VB didn't need fixes. But when reviewers requested defense-in-depth checks in additional functions, those NEW functions DID exist on NI/FE/VB. Because the session carried forward the stale "not applicable" verdict, those platforms were missed.**
+
+The 3a-bis analysis is **NOT a one-time gate**. It must be **re-run from scratch for ALL platforms** whenever the fix scope changes:
+
+**Triggers that require full re-evaluation:**
+1. **Reviewer feedback** — reviewer asks to fix additional functions or add defense-in-depth checks
+2. **New vulnerable site discovered** — variant analysis finds more call sites
+3. **Fix approach changes** — switching from one mitigation strategy to another
+4. **Additional MSRC added** — bundling a second MSRC into the same PR
+
+**Re-evaluation procedure:**
+
+```
+When fix scope changes:
+  1. Build the UPDATED list of ALL sites/functions being fixed (original + new)
+  2. For EVERY platform (Main, GE, GE-LT, NI, BR, FE, VB) — including ones
+     previously marked "not applicable":
+     a. Check if each NEW function/site exists on that platform
+     b. Check if it's already protected there
+     c. Update the platform's vulnerability table
+  3. Present updated findings:
+
+  "⚠️ Scope changed — re-analyzed all platforms for new sites:
+
+  | Platform | Original Sites | New Sites (defense-in-depth) | Verdict Change? |
+  |----------|---------------|------------------------------|-----------------|
+  | GE       | 3 of 5 needed | +2 new sites exist           | Yes — was 3, now 5 |
+  | NI       | 0 of 5 needed | +1 new site exists           | ⚠️ YES — was skip, now NEEDS FIX |
+  | FE       | 0 of 5 needed | 0 new sites exist            | No — still skip |
+  "
+  4. If any previously-skipped platform now needs a fix → start Phase 3 for it
+```
+
+**Anti-pattern (what MSRC-170271 did WRONG):**
+```
+❌ Initial analysis: "NI doesn't have RegisterProvider → skip NI"
+   Reviewer: "Also fix GetUpdateManagerWithProviderFilters"
+   Session: *only checks main/GE for the new function, ignores NI because
+            it was marked "skip" earlier*
+   Result: NI has GetUpdateManagerWithProviderFilters but it's left unpatched 💥
+
+✅ Correct: reviewer asks for new function → re-check ALL platforms for
+   that function, including NI which was previously skipped
+```
+
+**Rule: "Not applicable" is NEVER permanent.** It applies only to the specific set of sites analyzed at that point. Any scope expansion invalidates all prior "skip" decisions and requires fresh analysis.
+
 **3b. Apply Fix**
 1. Cherry-pick or manually port the fix from the primary branch — **only for sites identified as needing a fix in 3a-bis**
 2. Adapt code paths if needed (docked vs undocked differences)
@@ -1611,8 +1677,9 @@ After applying the fix, verify that ALL functional code changes from the primary
 
 **3f. Stage & Review**
 1. Stage only intended files (never auto-commit)
-2. Show diff to user
-3. Let user review before committing
+2. **Verify staged changes are visible** — after editing, run `git diff` and `git status` to confirm the changes appear. If the diff is empty or the edited file isn't shown as modified, something went wrong (wrong file path, edit didn't apply, etc.). Investigate before proceeding.
+3. Show diff to user
+4. Let user review before committing
 
 ### Phase 4: Build
 1. Build each platform repo (§11)
@@ -1663,11 +1730,39 @@ Overall: ❌ BR is missing file2.cpp port — BLOCK until resolved
 5. Verify no crash/vulnerability — not just code path existence
 6. Report results
 
+### Phase 5a: Proactive Regression Analysis (before PR submission)
+
+Before creating a PR, analyze regression risk and include findings in the PR description's "How was the change tested?" section:
+
+1. **Identify callers** — who calls the modified function(s)? Will the fix change their behavior?
+2. **Check error code changes** — if the fix returns a new error code (e.g., `E_ACCESSDENIED` where `S_OK` was returned before), trace all callers and check how they handle that error.
+3. **Lock ordering** — if locks are added/changed, check for existing lock hierarchies to avoid deadlocks.
+4. **Performance** — does the fix add I/O, allocations, or locks in a hot path?
+5. **Fallback behavior** — when the containment key is OFF, does the original code path remain exactly unchanged?
+
+Present a brief summary:
+```
+Regression risk assessment:
+- Callers of <function>: <N> callers — all handle E_ACCESSDENIED correctly ✅
+- Lock ordering: no existing locks in this path ✅
+- Performance: guard check is O(1), no hot-path impact ✅
+- Fallback: IsEnabled()=false → original code path unchanged ✅
+```
+
 ### Phase 6: Commit & Push
 1. Commit with format: `[MSRC XXXXXX] : <Bug title>`
 2. Include fix summary in commit body
 3. Push only when user approves
 4. Never force-push without explicit permission
+
+**Conflict Resolution Protocol:**
+- **Always `git fetch origin` before pushing** — stale remote refs cause avoidable conflicts
+- If push fails due to remote changes:
+  1. Fetch latest: `git fetch origin`
+  2. Attempt rebase: `git rebase origin/<target-branch>`
+  3. If conflicts occur, **STOP and present them to the user** — show each conflicting file and the conflict markers
+  4. **Never auto-resolve merge conflicts** — the user must decide how to resolve each one
+  5. After user resolves, verify the resolution with `git diff` before continuing the rebase
 
 ### Phase 7: PR Creation (ATOMIC — all steps mandatory, even for drafts)
 
@@ -1804,6 +1899,14 @@ Follow the repository's coding standards:
   }
   ```
   **Reason**: The containment analysis tool needs to clearly identify the feature gate boundary. Compound conditions make it ambiguous which logic is gated.
+
+### Reviewer Feedback: Defense-in-Depth Expansion (MANDATORY)
+
+When a reviewer requests defense-in-depth or asks to fix additional call sites:
+1. **Grep the ENTIRE codebase** for the pattern — not just the files in the current fix. Use repo-wide search (e.g., `Select-String -Recurse` or code intelligence) to find ALL instances of the pattern.
+2. **Present every match** to the user, even if some seem unrelated — let the user decide what to fix.
+3. **Re-trigger 3a-ter** (platform re-evaluation) for any new sites added, since they may exist on platforms the original fix didn't cover.
+4. Don't limit the search to the same directory or module — vulnerabilities often appear in copied/similar code across different components.
 
 ### MSRC Fix Comment Pattern
 ```cpp
@@ -2316,3 +2419,45 @@ Start-VM -Name "<VMName>"
   ```powershell
   Remove-VMSnapshot -VMName "<VMName>" -Name "MSRC-170271-*"
   ```
+
+### Repro Script Validation (before giving scripts to user)
+
+Before presenting any repro/validation script to the user, verify it will actually work:
+
+1. **Check all file paths** — do the referenced binaries, tools, and directories exist on the target (VM or host)?
+2. **Mark admin requirements** — if the script needs elevated privileges, say so explicitly: "Run this in an **admin** PowerShell"
+3. **Check for port/process conflicts** — if the script starts a service or listens on a port, check if something is already using it
+4. **Validate PowerShell syntax** — run a quick `[scriptblock]::Create()` or dry-run parse if possible
+5. **Test tool availability** — verify that tools like `sfpcopy.exe`, `StagingTool.exe`, `gflags.exe` are reachable from the target machine
+
+```
+❌ WRONG: "Run this script on the VM" (script references C:\Users\mayajoshi\... which doesn't exist on the VM)
+✅ RIGHT: "Copy sfpcopy.exe to the VM first (e.g., C:\temp\), then run:"
+```
+
+### VM Credential & Connection Tracking
+
+Track VM connection details in the session so the user is never re-asked for information they already provided:
+
+**Track these per-VM:**
+- VM name (Hyper-V name or hostname)
+- IP address
+- Credentials (username — never store passwords in session text; ask user to enter when connecting)
+- OS version and UUS version (from preflight check)
+- Current checkpoint state
+- What binaries have been deployed
+
+```
+Session VM tracker:
+┌─────────┬────────────────┬──────────┬──────────────┬─────────────────┐
+│ VM Name │ IP             │ OS Build │ UUS Version  │ Last Checkpoint │
+├─────────┼────────────────┼──────────┼──────────────┼─────────────────┤
+│ GE-Test │ 172.16.0.105   │ 26100.x  │ v1511.3023.1 │ MSRC-170271-fix │
+└─────────┴────────────────┴──────────┴──────────────┴─────────────────┘
+```
+
+**Rules:**
+- When the user provides VM details, store them in the session and reuse them for all subsequent VM operations
+- If a VM IP changes (e.g., after reboot), update the tracker — don't ask the user to re-provide everything
+- When deploying to a VM, reference the tracker to pick the right VM — don't ask "which VM?"
+- Never store actual passwords — only note "credentials provided" and prompt the user to re-enter when establishing a new connection
