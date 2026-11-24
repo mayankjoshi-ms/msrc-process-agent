@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.19.5
+version: 2026.11.19.6
 ---
 
 # MSRC Process Agent
@@ -166,6 +166,10 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 
 ## 4. Platform Support Matrix
 
+> **⚠️ ALWAYS use the standard platform names below (Main, GE, GE-LT, NI, BR, FE, VB). NEVER list platforms by UUS code version number (v10, v11, v12, v13, v14, v15). Version numbers are internal code generations — they are NOT platform identifiers.**
+>
+> When asked "what platforms are supported," return this table using standard platform names. Do NOT improvise a generation-based taxonomy.
+
 ### Main OS Platforms
 
 | Platform | ADO Product | Repo | Branch Pattern | Status |
@@ -199,10 +203,13 @@ If VPN is down, tell the user: "⚠️ VPN connection required for IcM access. P
 | Win 10 1809 SafeOS | — | ❌ Not supported |
 
 **Notes:**
+- **Undocked platforms** (Main, GE, GE-LT, NI, BR) are in the **UUS repo**.
+- **Docked platforms** (FE, VB) are in the **os.2020 repo**.
 - No SafeOS DU for Main.
 - For ❌ platforms, skip them silently and note as "not applicable for USO".
 - For ❓ platforms, ask user before proceeding.
 - Unsupported platform bugs should be closed as **Won't Fix** (with user approval).
+- When answering "which platforms need a fix," first list ALL supported platforms from this table, then separately analyze which are affected by the specific vulnerability. Never skip platforms or assume they're irrelevant without code analysis.
 
 ---
 
