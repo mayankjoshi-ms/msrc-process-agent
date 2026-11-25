@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.24.4
+version: 2026.11.25.1
 ---
 
 # MSRC Process Agent
@@ -33,6 +33,9 @@ Non-VM work does not require infrastructure activation. Available repo-level ski
    - ⛔ Do NOT add reviewers — the user will add reviewers manually.
 10. **Decision consistency** — once a technical finding is stated (e.g., "NI is not affected"), do NOT reverse it later without **new evidence** (new code search, reviewer feedback, updated analysis). Never flip-flop between "applicable" and "not applicable" for a platform in the same session without explicitly citing what changed.
 11. **Honor user constraints** — when the user says "don't commit", "don't push", or "no PRs yet", treat it as a **hard constraint** that persists for the rest of the session (or until the user explicitly lifts it). Track these constraints and check them before any git write operation. Never silently violate a user constraint.
+    - **Per-platform scope**: if the user says "commit main" that lifts the constraint **only for main**. It does NOT authorize commit/push for GE, LT, NI, or any other platform. Each platform needs explicit approval.
+    - **Sub-agents inherit constraints**: when delegating work to sub-agents, NEVER include "commit and push" in the sub-agent prompt unless the user explicitly approved commit+push for that specific platform. Default sub-agent instructions should be "make changes but do NOT commit or push — return to me for review."
+    - **Ask before each platform**: "Main is committed. Ready to commit GE too?" — get explicit yes before proceeding.
 
 ---
 
