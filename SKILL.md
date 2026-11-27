@@ -2515,6 +2515,7 @@ Gather all data first (IcM → task group → child bugs → PRs → builds → 
 - [ ] Platform bug linked to every PR (`az repos pr work-item add`)
 - [ ] No PR is missing its linked bug — cross-check PR list vs bug list
 - [ ] **Build status**: ALL PR builds `succeeded` — no `pending`, `failed`, or `notSet`
+- [ ] **No active PR comments** — all reviewer comments/threads are resolved. Unresolved threads are a blocker.
 
 ### Gate 5: Bug Hygiene
 - [ ] Every active platform bug has the Servicing Bug Case Approval Template filled (§8b)
@@ -2590,3 +2591,4 @@ Next actions:
 - **Build pending is a blocker** — cannot approve with unfinished builds
 - **Missing bug template is a warning** — template can be filled after PR approval but should be done before
 - **Missing PR-bug link is a blocker** — every active bug must have its PR linked
+- **Unresolved PR comments are a blocker** — all reviewer threads must be resolved before checkin
