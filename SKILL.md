@@ -1,7 +1,7 @@
 ---
 name: msrc-process-agent
 description: Self-sufficient end-to-end MSRC process agent for USO security fixes across all supported platforms (undocked and docked). Handles IcM intake, code porting, containment metadata, bug field management, PR creation, build, validation, and duplicate verification.
-version: 2026.11.25.1
+version: 2026.11.27.1
 ---
 
 # MSRC Process Agent
@@ -2470,3 +2470,123 @@ Session VM tracker:
 - If a VM IP changes (e.g., after reboot), update the tracker — don't ask the user to re-provide everything
 - When deploying to a VM, reference the tracker to pick the right VM — don't ask "which VM?"
 - Retrieve existing protected credentials through `uso-msrc-infra` for new connections; do not re-prompt when that source works. Keep passwords out of chat, session text, logs, scripts and Git. If a credential is missing or unusable, request a secure credential prompt for only the affected VM/account, not a password pasted into chat.
+
+---
+
+## 22. MSRC Readiness Audit
+
+Run this audit when the user says "is this MSRC ready?", "readiness check", "ready for checkin?", "ready for approvals?", or any equivalent phrasing. The audit checks EVERY dimension below and produces a single pass/fail report.
+
+### Trigger Phrases
+- "Is this ready?", "readiness check", "ready for checkin", "ready for approvals"
+- "Is MSRC XXXXXX fully done?", "can I submit this?"
+- "Pre-checkin check", "final check"
+
+### Audit Procedure
+
+Gather all data first (IcM → task group → child bugs → PRs → builds → containment → VM results), then evaluate every gate below. Present a single consolidated report at the end.
+
+### Gate 1: Platform Coverage
+- [ ] All supported platforms identified (§4 matrix)
+- [ ] Every supported platform has a fix ported (cross-platform summary — §13 Phase 4)
+- [ ] Unsupported platform bugs closed as Won't Fix (with prior approval)
+- [ ] No platform left in ❓ Unknown state
+
+### Gate 2: Code Quality
+- [ ] Per-platform vulnerability surface analysis (3a-bis) completed for every platform
+- [ ] 3a-ter re-evaluation done after any scope changes during the session
+- [ ] Containment uses nested `if` — no compound conditions with `IsEnabled()` (§14)
+- [ ] MSRC fix comment pattern present where behavior is non-obvious
+- [ ] No unrelated changes in any platform's diff
+- [ ] Coding standards followed (§14 — WIL, RAII, no direct Win32 in MoStack, etc.)
+
+### Gate 3: Containment Metadata
+- [ ] Every featurestaging entry has ALL required fields (§9 checklist — className, id, name, stage, email, **changeTime**)
+- [ ] Stage correct: `AlwaysDisabled` for main, `EnabledByDefault` for downlevel
+- [ ] Branch tokens present for main, absent for downlevel
+- [ ] **Triple-consistency**: branch version == containment Release == bug Release (§9)
+
+### Gate 4: PRs
+- [ ] PR exists for every supported platform
+- [ ] Title format: `[<platform>][MSRC <ID>] <description>` (§19)
+- [ ] All 3 Markdown sections present: Why / What / How (§19)
+- [ ] IcM link in every PR description
+- [ ] Vulnerable sites table in every PR (§19)
+- [ ] Platform bug linked to every PR (`az repos pr work-item add`)
+- [ ] No PR is missing its linked bug — cross-check PR list vs bug list
+- [ ] **Build status**: ALL PR builds `succeeded` — no `pending`, `failed`, or `notSet`
+
+### Gate 5: Bug Hygiene
+- [ ] Every active platform bug has the Servicing Bug Case Approval Template filled (§8b)
+- [ ] Template uses correct HTML format (§7 — `<div>` tags, `•` bullets, Aptos font, correct CSS)
+- [ ] Every active bug has a PR linked (ArtifactLink relation with `PullRequest`)
+- [ ] Required fields populated: Release, How Found, Binary Filename (**full names** — `usosvcimpl.dll`, `MoUsoCoreWorker.exe`), LOC Impact, Regression, Tags
+- [ ] Tags include `ComplianceProtocolClean` and `KIR_Opt_In`
+- [ ] Bug Release field matches branch version and containment Release (triple-consistency)
+- [ ] No active bug has State = `Active` with a merged PR (should be Resolved/Closed)
+- [ ] Unsupported platform bugs are Resolved (Won't Fix) → Closed
+
+### Gate 6: Regression Analysis
+- [ ] Every PR description includes regression analysis in the "How was the change tested?" section (§13 Phase 5a)
+- [ ] Caller analysis done — who calls modified functions, how they handle new error codes
+- [ ] Lock ordering checked if locks were added/changed
+- [ ] Performance impact assessed (no I/O/allocations in hot paths)
+- [ ] Fallback behavior verified — `IsEnabled()=false` → original code path unchanged
+- [ ] Before/after test results documented in PR description
+
+### Gate 7: Validation
+- [ ] Fix deployed to VM and tested using full repro scenario (not just code path verification)
+- [ ] VM validation results documented (before/after)
+- [ ] Repro scripts validated before use (§21 — paths, permissions, port conflicts)
+
+### Gate 8: IcM & Assessment
+- [ ] IcM assessment complete (not sev 3 with no SecurityImpact)
+- [ ] Task group and all child bugs accounted for
+- [ ] No orphan bugs (bugs not linked to task group)
+
+### Gate 9: Deadline
+- [ ] Checkin deadline checked (target release − 1 month per §10a)
+- [ ] Warning raised if past deadline
+
+### Audit Output Format
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║           MSRC <ID> — Readiness Audit                       ║
+╠══════════════════════════════════════════════════════════════╣
+
+Overall: ✅ READY / ❌ NOT READY / ⚠️ READY WITH WARNINGS
+
+Gate 1 — Platform Coverage:     ✅ 5/5 platforms covered
+Gate 2 — Code Quality:          ✅ All checks passed
+Gate 3 — Containment Metadata:  ✅ Triple-consistency verified
+Gate 4 — PRs:                   ❌ GE build still pending
+Gate 5 — Bug Hygiene:           ⚠️ NI bug missing template
+Gate 6 — Regression Analysis:   ✅ All PRs have analysis
+Gate 7 — Validation:            ✅ VM tested, before/after documented
+Gate 8 — IcM & Assessment:      ✅ Assessment complete
+Gate 9 — Deadline:              ✅ Within deadline
+
+─────────────────────────────────────────────────────────────
+Blockers (must fix before checkin):
+  ❌ Gate 4: GE PR #12345 build status = pending (wait or investigate)
+
+Warnings (should fix, not blocking):
+  ⚠️ Gate 5: Bug 64861569 (NI) — ReproSteps template not filled
+
+Next actions:
+  1. Wait for GE build to complete
+  2. Fill NI bug template (§8b)
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Rules:**
+- ❌ = blocker — MSRC is NOT ready until resolved
+- ⚠️ = warning — can proceed but should fix
+- ✅ = passed
+- Overall is ❌ if ANY gate has a ❌ blocker
+- Overall is ⚠️ if no blockers but any warnings exist
+- Overall is ✅ only when every gate is clean
+- **Build pending is a blocker** — cannot approve with unfinished builds
+- **Missing bug template is a warning** — template can be filled after PR approval but should be done before
+- **Missing PR-bug link is a blocker** — every active bug must have its PR linked
