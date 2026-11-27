@@ -2514,7 +2514,7 @@ Gather all data first (IcM → task group → child bugs → PRs → builds → 
 - [ ] Vulnerable sites table in every PR (§19)
 - [ ] Platform bug linked to every PR (`az repos pr work-item add`)
 - [ ] No PR is missing its linked bug — cross-check PR list vs bug list
-- [ ] **Build status**: ALL PR builds `succeeded` — no `pending`, `failed`, or `notSet`
+- [ ] **Build status**: ALL PR builds `succeeded` — no `pending`, `failed`, `expired`, or `notSet`. Any non-succeeded build is a blocker.
 - [ ] **No active PR comments** — all reviewer comments/threads are resolved. Unresolved threads are a blocker.
 
 ### Gate 5: Bug Hygiene
